@@ -41,6 +41,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include "logging.h"
+
 #include <QMediaService>
 #include <QCameraViewfinder>
 #include <QMediaMetaData>
@@ -49,8 +51,6 @@
 #include <QPalette>
 
 #include <QtWidgets>
-
-#include <QDebug>
 
 #if (defined(Q_WS_MAEMO_6)) && QT_VERSION >= 0x040700
 #define HAVE_CAMERA_BUTTONS
@@ -101,8 +101,6 @@ void MainWindow::setCamera(const QByteArray &cameraDevice)
     else
         camera = new QCamera(cameraDevice);
 
-    //camera->setViewfinder( static_cast<QAbstractVideoSurface*>( &videoSurface ) );
-
     camera->setViewfinder(ui->videoWidget->videoSurface());
     camera->start();
 }
@@ -145,13 +143,13 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
 
 void MainWindow::startCamera()
 {
-    qDebug() << "Started the camera";
+    LOG(Debug, "Started the camera");
     camera->start();
 }
 
 void MainWindow::stopCamera()
 {
-    qDebug() << "Stopped the camera";
+    LOG(Debug, "Stopped the camera");
     camera->stop();
 }
 

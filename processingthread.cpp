@@ -1,7 +1,10 @@
 #include "processingthread.h"
+
+#include "logging.h"
+
 #include <QDebug>
 
-static const int QUEUE_MAX_LENGTH = 3;
+static const int QUEUE_MAX_LENGTH = 5;
 static const int THREAD_SLEEP_MS = 25;
 
 ProcessingThread::ProcessingThread(QObject *parent) :
@@ -25,6 +28,7 @@ void ProcessingThread::addFrameToProcessingQueue(QImage frame)
         QImage threadCopy = frame.copy();
         queue.enqueue(threadCopy);
     } else {
+        LOG(Debug, "Queue is full");
         emit queueFull();
     }
 }
@@ -38,7 +42,7 @@ void ProcessingThread::run()
         {
             QImage currentFrame = queue.dequeue();
 
-            qDebug() << "Processing image";
+            LOG(Debug, "Processing image");
 
             // Here you can do whatever processing you need on the frame
             currentFrame.save("E:/PROGRAMOWANIE/workspace-qt/img.png");
@@ -51,6 +55,6 @@ void ProcessingThread::run()
             msleep(THREAD_SLEEP_MS);
         }
     }
-    qDebug() << "Processing thread ending";
+
     exit(0);
 }

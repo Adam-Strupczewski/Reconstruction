@@ -7,14 +7,16 @@ HEADERS = \
     videosurface.h \
     mainwindow.h \
     videowidget.h \
-    processingthread.h
+    processingthread.h \
+    logging.h
 
 SOURCES = \
     main.cpp \
     videosurface.cpp \
     mainwindow.cpp \
     videowidget.cpp \
-    processingthread.cpp
+    processingthread.cpp \
+    logging.cpp
 
 FORMS += \
     mainwindow.ui
