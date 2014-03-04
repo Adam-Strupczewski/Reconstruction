@@ -51,8 +51,10 @@ class VideoWidget : public QWidget
 {
     Q_OBJECT
 public:
-    VideoWidget(QWidget *parent = 0);
-    ~VideoWidget();
+    explicit VideoWidget(QWidget *parent = 0);
+    virtual ~VideoWidget();
+
+    void setImageBuffers(QImage *im1, QImage *im2);
 
     QAbstractVideoSurface *videoSurface() { return surface; }
 
@@ -69,7 +71,7 @@ private slots:
 
     // From file
     // Image should be deleted after processing is finished
-    void imageReady(QImage *image);
+    void imageReady();
 
     // ProcessingThread
     void onFrameProcessed();
@@ -83,6 +85,10 @@ private:
 
     long receivedFrameCounter;
     long processedFrameCounter;
+
+    // These buffers are set and managed externally
+    QImage * imageBuffer1;
+    QImage * imageBuffer2;
 };
 
 #endif

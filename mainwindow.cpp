@@ -60,7 +60,9 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
     camera(0),
-    imageThread(0)
+    imageThread(0),
+    imageBuffer1(0),
+    imageBuffer2(0)
 {
     ui->setupUi(this);
 
@@ -89,11 +91,12 @@ MainWindow::MainWindow(QWidget *parent) :
         connect(ui->startButton, SIGNAL(clicked()), SLOT(startCamera()));
         setCamera(cameraDevice);
     }else{
+
         connect(ui->startButton, SIGNAL(clicked()), SLOT(startImageReadingThread()));
         connect(ui->stopButton, SIGNAL(clicked()), SLOT(stopImageReadingThread()));
 
         createImageReadingThread();
-        connect(imageThread, SIGNAL(imageReady(QImage *)), ui->videoWidget, SLOT(imageReady(QImage *)));
+        connect(imageThread, SIGNAL(imageReady()), ui->videoWidget, SLOT(imageReady()));
     }
 }
 
@@ -103,6 +106,8 @@ MainWindow::~MainWindow()
         camera->stop();
         delete camera;
     }else{
+        delete imageBuffer1;
+        delete imageBuffer2;
         imageThread->stop();
         delete imageThread;
         delete camera;
@@ -137,8 +142,15 @@ void MainWindow::stopCamera()
 
 void MainWindow::createImageReadingThread(){
     delete imageThread;
+    delete imageBuffer1;
+    delete imageBuffer2;
 
     imageThread = new ImageReadingThread;
+    imageBuffer1 = new QImage();
+    imageBuffer2 = new QImage();
+
+    imageThread->setImageBuffers(imageBuffer1, imageBuffer2);
+    ui->videoWidget->setImageBuffers(imageBuffer1, imageBuffer2);
 
     LOG(Debug, "Creating and starting new image thread");
     imageThread->start();

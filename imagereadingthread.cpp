@@ -16,6 +16,10 @@ ImageReadingThread::~ImageReadingThread()
     stop();
 }
 
+void ImageReadingThread::setImageBuffers(QImage *im1, QImage *im2){
+    imageReader.setImageBuffers(im1, im2);
+}
+
 void ImageReadingThread::stop()
 {
     stopped = true;
@@ -23,15 +27,14 @@ void ImageReadingThread::stop()
 
 void ImageReadingThread::run()
 {
-    ImageReader imageReader;
-
     // Process until stop() called
     while (!stopped)
     {
-        QImage *currentFrame = new QImage();
-        *currentFrame = imageReader.getNextImage();
-
-        emit imageReady(currentFrame);
+        if (imageReader.getNextImage()){
+            emit imageReady();
+        }else{
+            // TODO
+        }
 
         // No frames in queue, sleep for a short while
         msleep(THREAD_SLEEP_MS);

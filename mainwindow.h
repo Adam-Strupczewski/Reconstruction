@@ -87,6 +87,10 @@ private:
     QCamera::Status cameraStatus;
     QCamera::Error cameraError;
     bool cameraActive;
+
+    // For image reading...
+    QImage * imageBuffer1;
+    QImage * imageBuffer2;
 };
 
 #endif

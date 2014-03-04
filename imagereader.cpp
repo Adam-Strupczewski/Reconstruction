@@ -11,15 +11,30 @@ ImageReader::ImageReader()
     currentImage = 0;
 }
 
-QImage ImageReader::getNextImage()
+ImageReader::~ImageReader()
 {
+}
+
+void ImageReader::setImageBuffers(QImage *im1, QImage *im2){
+    imageBuffer1 = im1;
+    imageBuffer2 = im2;
+}
+
+bool ImageReader::getNextImage()
+{
+    // TODO read even / odd
     QString currentPath = getNextImagePath();
     QImageReader reader(currentPath);
 
     if (reader.canRead()){
-        return reader.read();
+        if ((currentImage%2)==1){
+            return reader.read(imageBuffer1);
+        }else{
+            return reader.read(imageBuffer2);
+        }
     }else{
-        return reader.read();
+        // TODO
+        return false;
     }
 }
 

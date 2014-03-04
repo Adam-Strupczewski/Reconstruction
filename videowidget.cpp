@@ -66,6 +66,11 @@
      delete surface;
  }
 
+ void VideoWidget::setImageBuffers(QImage *im1, QImage *im2){
+     imageBuffer1 = im1;
+     imageBuffer2 = im2;
+ }
+
  void VideoWidget::frameReady(){
 
      receivedFrameCounter++;
@@ -84,9 +89,17 @@
      update();
  }
 
- void VideoWidget::imageReady(QImage *image){
+ void VideoWidget::imageReady(){
 
      receivedFrameCounter++;
+
+     QImage *image;
+
+     if ((receivedFrameCounter%2)==1){
+        image = imageBuffer1;
+     }else{
+        image = imageBuffer2;
+     }
 
      // Add received frame to processing thread for processing
      if (processor) {
@@ -95,8 +108,6 @@
 
      // And take a copy for ourselves for drawing it on the screen
      currentFrame = QPixmap::fromImage(*image);
-
-     delete image;
 
      // Update the UI
      update();

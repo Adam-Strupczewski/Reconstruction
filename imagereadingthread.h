@@ -5,6 +5,8 @@
 #include <QImage>
 #include <QQueue>
 
+#include "imagereader.h"
+
 class ImageReadingThread : public QThread
 {
     Q_OBJECT
@@ -12,14 +14,17 @@ public:
     explicit ImageReadingThread(QObject *parent = 0);
     virtual ~ImageReadingThread();
 
-    //void setImageBuffers(QImage *image1, QImage *image);
+    void setImageBuffers(QImage *im1, QImage *im2);
+
 signals:
-    void imageReady(QImage *image);
+    void imageReady();
 public:
     void stop();
 private:
     virtual void run();
 private:
+    ImageReader imageReader;
+
     bool stopped;
 };
 

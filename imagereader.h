@@ -7,8 +7,12 @@
 class ImageReader
 {
 public:
-    ImageReader();
-    QImage getNextImage();
+    explicit ImageReader();
+    virtual ~ImageReader();
+
+    void setImageBuffers(QImage *im1, QImage *im2);
+
+    bool getNextImage();
 
 private:
 
@@ -19,6 +23,10 @@ private:
     int imageAmount;
 
     int currentImage;
+
+    // These buffers are set and managed externally
+    QImage * imageBuffer1;
+    QImage * imageBuffer2;
 };
 
 #endif // IMAGEREADER_H
