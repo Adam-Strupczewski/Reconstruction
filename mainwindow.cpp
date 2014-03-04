@@ -59,7 +59,8 @@
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
-    camera(0)
+    camera(0),
+    imageThread(0)
 {
     ui->setupUi(this);
 
@@ -81,15 +82,31 @@ MainWindow::MainWindow(QWidget *parent) :
     }
 
     connect(videoDevicesGroup, SIGNAL(triggered(QAction*)), SLOT(updateCameraDevice(QAction*)));
-    connect(ui->stopButton, SIGNAL(clicked()), SLOT(stopCamera()));
-    connect(ui->startButton, SIGNAL(clicked()), SLOT(startCamera()));
 
-    setCamera(cameraDevice);
+    // Whether to use camera or images on disk
+    if (USE_CAMERA){
+        connect(ui->stopButton, SIGNAL(clicked()), SLOT(stopCamera()));
+        connect(ui->startButton, SIGNAL(clicked()), SLOT(startCamera()));
+        setCamera(cameraDevice);
+    }else{
+        connect(ui->startButton, SIGNAL(clicked()), SLOT(startImageReadingThread()));
+        connect(ui->stopButton, SIGNAL(clicked()), SLOT(stopImageReadingThread()));
+
+        createImageReadingThread();
+        connect(imageThread, SIGNAL(imageReady(QImage *)), ui->videoWidget, SLOT(imageReady(QImage *)));
+    }
 }
 
 MainWindow::~MainWindow()
 {
-    delete camera;
+    if (USE_CAMERA){
+        camera->stop();
+        delete camera;
+    }else{
+        imageThread->stop();
+        delete imageThread;
+        delete camera;
+    }
 }
 
 void MainWindow::setCamera(const QByteArray &cameraDevice)
@@ -99,10 +116,42 @@ void MainWindow::setCamera(const QByteArray &cameraDevice)
     if (cameraDevice.isEmpty())
         camera = new QCamera;
     else
-        camera = new QCamera(cameraDevice);
+        camera = new QCamera;//(cameraDevice);
 
-    camera->setViewfinder(ui->videoWidget->videoSurface());
+    LOG(Debug, "Creating and starting the camera");
+    camera->setViewfinder(static_cast<QAbstractVideoSurface*>(ui->videoWidget->videoSurface()));
     camera->start();
+}
+
+void MainWindow::startCamera()
+{
+    LOG(Debug, "Started the camera");
+    camera->start();
+}
+
+void MainWindow::stopCamera()
+{
+    LOG(Debug, "Stopped the camera");
+    camera->stop();
+}
+
+void MainWindow::createImageReadingThread(){
+    delete imageThread;
+
+    imageThread = new ImageReadingThread;
+
+    LOG(Debug, "Creating and starting new image thread");
+    imageThread->start();
+}
+
+void MainWindow::startImageReadingThread(){
+    LOG(Debug, "Started image reading thread");
+    imageThread->start();
+}
+
+void MainWindow::stopImageReadingThread(){
+    LOG(Debug, "Stopped image reading thread");
+    imageThread->stop();
 }
 
 void MainWindow::keyPressEvent(QKeyEvent * event)
@@ -112,15 +161,7 @@ void MainWindow::keyPressEvent(QKeyEvent * event)
 
     switch (event->key()) {
     case Qt::Key_CameraFocus:
-        camera->searchAndLock();
-        event->accept();
-        break;
-    case Qt::Key_Camera:
-        if (camera->captureMode() == QCamera::CaptureStillImage) {
-            // takeImage();
-        }
-
-        event->accept();
+        //...
         break;
     default:
         QMainWindow::keyPressEvent(event);
@@ -134,23 +175,11 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
 
     switch (event->key()) {
     case Qt::Key_CameraFocus:
-        camera->unlock();
+        //...
         break;
     default:
         QMainWindow::keyReleaseEvent(event);
     }
-}
-
-void MainWindow::startCamera()
-{
-    LOG(Debug, "Started the camera");
-    camera->start();
-}
-
-void MainWindow::stopCamera()
-{
-    LOG(Debug, "Stopped the camera");
-    camera->stop();
 }
 
 void MainWindow::updateCameraDevice(QAction *action)

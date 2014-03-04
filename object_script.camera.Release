@@ -1,0 +1,16 @@
+INPUT(
+./release\main.o
+./release\videosurface.o
+./release\mainwindow.o
+./release\videowidget.o
+./release\processingthread.o
+./release\logging.o
+./release\qtcvconversion.o
+./release\imagereader.o
+./release\imagereadingthread.o
+./release\moc_videosurface.o
+./release\moc_mainwindow.o
+./release\moc_videowidget.o
+./release\moc_processingthread.o
+./release\moc_imagereadingthread.o
+);

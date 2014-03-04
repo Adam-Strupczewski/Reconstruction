@@ -48,6 +48,8 @@
 #include <QMainWindow>
 
 #include "videosurface.h"
+#include "settings.h"
+#include "imagereadingthread.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -63,9 +65,12 @@ public:
 
 private slots:
     void setCamera(const QByteArray &cameraDevice);
-
     void startCamera();
     void stopCamera();
+
+    void createImageReadingThread();
+    void startImageReadingThread();
+    void stopImageReadingThread();
 
     void updateCameraDevice(QAction *action);
 
@@ -77,6 +82,7 @@ protected:
 private:
     Ui::MainWindow *ui;
     QCamera *camera;
+    ImageReadingThread *imageThread;
 
     QCamera::Status cameraStatus;
     QCamera::Error cameraError;

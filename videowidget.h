@@ -67,6 +67,10 @@ private slots:
     // Surface
     void frameReady();
 
+    // From file
+    // Image should be deleted after processing is finished
+    void imageReady(QImage *image);
+
     // ProcessingThread
     void onFrameProcessed();
     void onThreadCongested();

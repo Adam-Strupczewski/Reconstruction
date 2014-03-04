@@ -60,6 +60,9 @@
 
  VideoWidget::~VideoWidget()
  {
+     processor->stop();
+     processor->deleteLater();
+     surface->stop();
      delete surface;
  }
 
@@ -76,6 +79,24 @@
 
      // And take a copy for ourselves for drawing it on the screen
      currentFrame = QPixmap::fromImage(frame);
+
+     // Update the UI
+     update();
+ }
+
+ void VideoWidget::imageReady(QImage *image){
+
+     receivedFrameCounter++;
+
+     // Add received frame to processing thread for processing
+     if (processor) {
+         processor->addFrameToProcessingQueue(*image);
+     }
+
+     // And take a copy for ourselves for drawing it on the screen
+     currentFrame = QPixmap::fromImage(*image);
+
+     delete image;
 
      // Update the UI
      update();

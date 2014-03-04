@@ -1,0 +1,16 @@
+INPUT(
+./debug\main.o
+./debug\videosurface.o
+./debug\mainwindow.o
+./debug\videowidget.o
+./debug\processingthread.o
+./debug\logging.o
+./debug\qtcvconversion.o
+./debug\imagereader.o
+./debug\imagereadingthread.o
+./debug\moc_videosurface.o
+./debug\moc_mainwindow.o
+./debug\moc_videowidget.o
+./debug\moc_processingthread.o
+./debug\moc_imagereadingthread.o
+);
