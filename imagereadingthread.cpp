@@ -1,3 +1,5 @@
+#include "stdafx.h"
+
 #include "imagereadingthread.h"
 #include "imagereader.h"
 #include "logging.h"
@@ -14,6 +16,9 @@ ImageReadingThread::ImageReadingThread(QObject *parent) :
 ImageReadingThread::~ImageReadingThread()
 {
     stop();
+}
+
+void ImageReadingThread::initialize(){
 }
 
 void ImageReadingThread::setImageBuffers(QImage *im1, QImage *im2){

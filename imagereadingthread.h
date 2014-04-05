@@ -14,6 +14,8 @@ public:
     explicit ImageReadingThread(QObject *parent = 0);
     virtual ~ImageReadingThread();
 
+	void initialize();
+
     void setImageBuffers(QImage *im1, QImage *im2);
 
 signals:

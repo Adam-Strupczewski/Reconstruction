@@ -1,3 +1,5 @@
+#include "stdafx.h"
+
 #include "logging.h"
 
 void LOG(LogLevel level, const char* message)

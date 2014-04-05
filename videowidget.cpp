@@ -38,6 +38,8 @@
  **
  ****************************************************************************/
 
+#include "stdafx.h"
+
  #include "videowidget.h"
 
  #include <QtMultimedia>
@@ -46,8 +48,12 @@
      : QWidget(parent)
      , surface(0), receivedFrameCounter(0)
  {
+	 surface = new VideoSurface(this);
+ }
 
-     surface = new VideoSurface(this);
+ void VideoWidget::initialize(){
+	 
+	 sceneModel = new SceneModel();
 
      // Connect surface to our slot
      connect(surface, SIGNAL(frameAvailable()), this, SLOT(frameReady()));
@@ -55,15 +61,24 @@
      processor = new ProcessingThread(this);
      connect(processor, SIGNAL(frameProcessed()), this, SLOT(onFrameProcessed()));
      connect(processor, SIGNAL(queueFull()), this, SLOT(onThreadCongested()));
+
+	 processor->initialize(sceneModel);
+
      processor->start();
- }
+}
 
  VideoWidget::~VideoWidget()
  {
-     processor->stop();
-     processor->deleteLater();
-     surface->stop();
-     delete surface;
+     if (processor!=NULL){
+		 processor->stop();
+		 processor->deleteLater();
+	 }
+	 if (surface != NULL){
+		surface->stop();
+		delete surface;
+	 }
+
+	 delete sceneModel;
  }
 
  void VideoWidget::setImageBuffers(QImage *im1, QImage *im2){
@@ -106,17 +121,22 @@
          processor->addFrameToProcessingQueue(*image);
      }
 
-     // And take a copy for ourselves for drawing it on the screen
-     currentFrame = QPixmap::fromImage(*image);
+	 // Wait with updates until the processing thread finishes
 
-     // Update the UI
-     update();
+     // And take a copy for ourselves for drawing it on the screen
+     // currentFrame = QPixmap::fromImage(*image);
+     // update();
  }
 
  void VideoWidget::onFrameProcessed()
  {
      processedFrameCounter++;
      //emit processedCountChanged(processedFrameCounter);
+
+	 // The processing thread has just processed a new frame
+	 // We want to take the new image from the thread and mark the computed keypoints in this image
+	 currentFrame =  QPixmap::fromImage(*(processor->getCurrentFrame()));
+
      update();
  }
 

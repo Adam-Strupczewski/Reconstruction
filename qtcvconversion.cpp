@@ -1,3 +1,5 @@
+#include "stdafx.h"
+
 #include "qtcvconversion.h"
 #include <opencv2/core/core_c.h>
 #include <stdio.h>
@@ -15,6 +17,7 @@ QImage cvtCvMat2QImage(const cv::Mat & image)
             {
                 QRgb * p = ((QRgb*)qtemp.scanLine (y)) + x;
                 *p = qRgb(data[x * image.channels()+2], data[x * image.channels()+1], data[x * image.channels()]);
+				//*p = qRgb(data[x * image.channels()], data[x * image.channels()], data[x * image.channels()]);
             }
         }
     }

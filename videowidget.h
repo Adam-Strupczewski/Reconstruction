@@ -46,6 +46,7 @@
 
 #include "videosurface.h"
 #include "processingthread.h"
+#include "scenemodel.h"
 
 class VideoWidget : public QWidget
 {
@@ -53,6 +54,8 @@ class VideoWidget : public QWidget
 public:
     explicit VideoWidget(QWidget *parent = 0);
     virtual ~VideoWidget();
+
+	void initialize();
 
     void setImageBuffers(QImage *im1, QImage *im2);
 
@@ -89,6 +92,8 @@ private:
     // These buffers are set and managed externally
     QImage * imageBuffer1;
     QImage * imageBuffer2;
+
+	SceneModel * sceneModel;
 };
 
 #endif

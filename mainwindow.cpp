@@ -38,6 +38,8 @@
 **
 ****************************************************************************/
 
+#include "stdafx.h"
+
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -98,6 +100,10 @@ MainWindow::MainWindow(QWidget *parent) :
         createImageReadingThread();
         connect(imageThread, SIGNAL(imageReady()), ui->videoWidget, SLOT(imageReady()));
     }
+
+	// Initialize all objects
+	imageThread->initialize();
+	ui->videoWidget->initialize();
 }
 
 MainWindow::~MainWindow()
@@ -106,11 +112,10 @@ MainWindow::~MainWindow()
         camera->stop();
         delete camera;
     }else{
-        delete imageBuffer1;
-        delete imageBuffer2;
         imageThread->stop();
-        delete imageThread;
-        delete camera;
+		imageThread->deleteLater();
+		delete imageBuffer1;
+        delete imageBuffer2;
     }
 }
 
@@ -125,7 +130,7 @@ void MainWindow::setCamera(const QByteArray &cameraDevice)
 
     LOG(Debug, "Creating and starting the camera");
     camera->setViewfinder(static_cast<QAbstractVideoSurface*>(ui->videoWidget->videoSurface()));
-    camera->start();
+    //camera->start();
 }
 
 void MainWindow::startCamera()
@@ -153,7 +158,7 @@ void MainWindow::createImageReadingThread(){
     ui->videoWidget->setImageBuffers(imageBuffer1, imageBuffer2);
 
     LOG(Debug, "Creating and starting new image thread");
-    imageThread->start();
+    //imageThread->start();
 }
 
 void MainWindow::startImageReadingThread(){

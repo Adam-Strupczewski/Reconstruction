@@ -1,3 +1,5 @@
+#include "stdafx.h"
+
 #include "imagereader.h"
 
 #include <QImageReader>

@@ -1,3 +1,5 @@
+#include "stdafx.h"
+
 #include "videosurface.h"
 
 #include "qtcvconversion.h"
@@ -49,31 +51,7 @@ bool VideoSurface::present(const QVideoFrame &frame)
 
             videoFrame.unmap();
 
-            /***************************************************************/
-            // Process last frame
-        /*    IplImage iplImage = *(cvtQImage2IplImage(lastFrame));
-
-            //Convert to grayscale
-            IplImage * imageGrayScale = 0;
-            if(iplImage.nChannels != 1 || iplImage.depth != IPL_DEPTH_8U)
-            {
-                LOG(Debug, "Created grascale");
-                imageGrayScale = cvCreateImage(cvSize(iplImage.width,iplImage.height), IPL_DEPTH_8U, 1);
-                cvCvtColor(&iplImage, imageGrayScale, CV_BGR2GRAY);
-            }
-            cv::Mat img;
-            if(imageGrayScale)
-            {
-                img = cv::Mat(imageGrayScale);
-            }
-            else
-            {
-                img =  cv::Mat(&iplImage);
-            }
-*/
-
-
-            // TODO Use thread in future
+            // Use thread for processing
             emit frameAvailable();
             return true;
         }
