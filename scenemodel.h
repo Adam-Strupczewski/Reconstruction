@@ -21,9 +21,12 @@ public:
 	void addNewFramePoints(std::vector<cv::KeyPoint> point);
 	void addNewFrameDescriptors(cv::Mat descriptors);
 
-	std::vector<cv::KeyPoint> getNextFramePoints();
-	cv::Mat getNextFrameDescriptors();
+	std::vector<cv::KeyPoint> getKeypoints(int frame);
+	cv::Mat getDescriptors(int frame);
 	int getFrameCount();
+
+	// TEMPORARY FOR VISUALIZATION
+	std::vector<cv::Mat> frames;
 
 private:
 	// Vector of vectors with keypoints for each image

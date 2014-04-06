@@ -22,30 +22,22 @@ void SceneModel::addNewFrameDescriptors(cv::Mat descriptors){
 	mutex.unlock();
 }
 
-std::vector<cv::KeyPoint> SceneModel::getNextFramePoints(){
+std::vector<cv::KeyPoint> SceneModel::getKeypoints(int frame){
 
 	std::vector<cv::KeyPoint> pts;
 
 	mutex.lock();
-	if (counter < keypointDatabase.size()){
-		pts = keypointDatabase.at(counter++);
-	}else{
-		pts = keypointDatabase.at(counter-1);
-	}
+	pts = keypointDatabase.at(frame);
 	mutex.unlock();
 	return pts;
 }
 
-cv::Mat SceneModel::getNextFrameDescriptors(){
+cv::Mat SceneModel::getDescriptors(int frame){
 	
 	cv::Mat descriptors;
 
 	mutex.lock();
-	if (counter < keypointDatabase.size()){
-		descriptors = descriptorDatabase.at(counter++);
-	}else{
-		descriptors = descriptorDatabase.at(counter-1);
-	}
+	descriptors = descriptorDatabase.at(frame);
 	mutex.unlock();
 	return descriptors;
 }

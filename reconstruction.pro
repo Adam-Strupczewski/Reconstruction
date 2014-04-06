@@ -12,7 +12,8 @@ HEADERS = \
     qtcvconversion.h \
     imagereader.h \
     settings.h \
-    imagereadingthread.h
+    imagereadingthread.h \
+    stdafx.h
 
 SOURCES = \
     main.cpp \
@@ -36,10 +37,10 @@ QT+=widgets
 INCLUDEPATH += $$PWD/../../opencv_246/build/include
 DEPENDPATH += $$PWD/../../opencv_246/build/include
 
-unix|win32: LIBS += -L$$PWD/../../opencv_246/build/x86/mingw/lib/ -lopencv_core246 \
-             -llibopencv_imgproc246 \
-             -llibopencv_features2d246 \
-             -llibopencv_flann246
+unix|win32: LIBS += -L$$PWD/../../opencv_246/build/x86/vc10/lib/ -lopencv_core246d \
+             -lopencv_imgproc246d \
+             -lopencv_features2d246d \
+             -lopencv_flann246d
 
 #win32:CONFIG(release, debug|release): LIBS += -L$$PWD/../../opencv_246/build/x86/vc10/lib/ -lopencv_calib3d246
 #else:win32:CONFIG(debug, debug|release): LIBS += -L$$PWD/../../opencv_246/build/x86/vc10/lib/ -lopencv_calib3d246d

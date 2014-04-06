@@ -3,10 +3,11 @@
 
 #include <QDebug>
 
-enum LogLevel {Debug, Warn, Critical, Error, None};
+enum LogLevel {Info, Debug, Warn, Critical, Error, None};
 
-static const LogLevel LOG_LEVEL = Debug;
+static const LogLevel LOG_LEVEL = Info;
 
 void LOG(LogLevel level, const char* message);
+void LOG(LogLevel level, const char* message, float f);
 
 #endif // LOGGING_H

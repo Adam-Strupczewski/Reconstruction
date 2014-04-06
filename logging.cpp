@@ -8,3 +8,10 @@ void LOG(LogLevel level, const char* message)
         qDebug() << message;
     }
 }
+
+void LOG(LogLevel level, const char* message, float f)
+{
+    if (level>=LOG_LEVEL){
+        qDebug() << message << f;
+    }
+}

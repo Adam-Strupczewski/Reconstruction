@@ -7,6 +7,8 @@
 
 #include <QDebug>
 
+#include <opencv2/nonfree/features2d.hpp>
+
 static const int QUEUE_MAX_LENGTH = 5;
 static const int THREAD_SLEEP_MS = 25;
 
@@ -59,6 +61,9 @@ void ProcessingThread::run()
             // Process last frame
             IplImage iplImage = *(cvtQImage2IplImage(currentFrame));
 
+			// TODO this will be removed in future, now for visualization
+			sceneModel->frames.push_back(cv::Mat(&iplImage));
+
             // Convert image to grayscale
             IplImage * imageGrayScale = 0;
             if(iplImage.nChannels != 1 || iplImage.depth != IPL_DEPTH_8U)
@@ -82,18 +87,21 @@ void ProcessingThread::run()
 
             // Extract keypoints
 			LOG(Debug, "Extracting keypoints...");
-            cv::FeatureDetector * detector = new cv::BRISK();
+			int minHessian = 400;
+			cv::SurfFeatureDetector detector(minHessian);
+            //cv::FeatureDetector * detector = new cv::BRISK();
             std::vector<cv::KeyPoint> keypoints;
-            detector->detect(img, keypoints);
-            delete detector;
+            detector.detect(img, keypoints);
+            //delete detector;
 
 			// Extract descriptors
             cv::Mat descriptors;
             if(keypoints.size())
             {
-                cv::DescriptorExtractor * extractor = new cv::BRISK();
-                extractor->compute(img, keypoints, descriptors);
-                delete extractor;
+				cv::SurfDescriptorExtractor extractor;
+                //cv::DescriptorExtractor * extractor = new cv::BRISK();
+                extractor.compute(img, keypoints, descriptors);
+                //delete extractor;
                 if((int)keypoints.size() != descriptors.rows)
                 {
                     LOG(Debug, "Error extracting descriptors");
@@ -125,15 +133,81 @@ void ProcessingThread::run()
 			// Here we want to process the already added keypoints and create a stereo model
 			// Later will add bundle adjustment etc
 			if (sceneModel->getFrameCount()==2){
+
 				// PURELY TEST CODE - one-time model update
-				std::vector<cv::KeyPoint> keypointsPrevious = sceneModel->getNextFramePoints();
+				std::vector<cv::KeyPoint> keypointsPrevious = sceneModel->getKeypoints(0);
+				cv::Mat descriptorsPrevious = sceneModel->getDescriptors(0);
+
+/////////////////////////////////////////////////////////////////////////////////////////
+				
+				if (descriptors.empty() || descriptorsPrevious.empty()){
+					LOG(Warn, "No descriptors for the last two images");
+					return;
+				}
+
+				// Find matches
+				//cv::FlannBasedMatcher matcher;
+				cv::BFMatcher matcher;
+				std::vector< cv::DMatch > matches;
+				matcher.match( descriptors, descriptorsPrevious, matches );
+
+				LOG(Debug, "Calculated matches with Flann");
+			
+				// Calculate min/max distance
+				double max_dist = 0; double min_dist = 100;
+				
+				for( int i = 0; i < descriptors.rows; i++ )
+				{ 
+					double dist = matches[i].distance;
+					if( dist < min_dist ) min_dist = dist;
+					if( dist > max_dist ) max_dist = dist;
+				}
+
+				LOG(Info, "-- Max dist : ", max_dist);
+				LOG(Info, "-- Min dist : ", min_dist);
+
+				// Select only "good" matches (i.e. whose distance is less than 3*min_dist )
+				std::vector< cv::DMatch > goodMatches;
+
+				for( int i = 0; i < descriptors.rows; i++ )
+				{ if( matches[i].distance < 3*min_dist )
+					{ goodMatches.push_back( matches[i]); }
+				}
+
+				// Check if there are sufficient good matches
+				if (goodMatches.size() < 30){
+					LOG(Debug, "Insufficient good matches to find homography");
+					return;
+				}
+
+				// Calculate homography
+				std::vector<cv::Point2f> pts1;
+				std::vector<cv::Point2f> pts2;
+
+				for( int i = 0; i < goodMatches.size(); i++ )
+				{
+					//-- Get the keypoints from the good matches
+					pts1.push_back( keypoints[ goodMatches[i].queryIdx ].pt );
+					pts2.push_back( keypointsPrevious[ goodMatches[i].trainIdx ].pt );
+				}
+
+				cv::Mat H = cv::findHomography( pts1, pts2, CV_RANSAC );
+
+				cv::Mat img_matches;
+				cv::drawMatches(sceneModel->frames[0], keypointsPrevious, sceneModel->frames[1], keypoints,
+					goodMatches, img_matches, cv::Scalar::all(-1), cv::Scalar::all(-1),
+					std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
+
+				//-- Show detected matches
+				imshow( "Good Matches & Object detection", img_matches );
+				cv::waitKey(0);
+
+/////////////////////////////////////////////////////////////////////////////////////////
 
 				//computeStereo(keypoints, keypointsPrevious);
 			}
 
 			
-
-
 			/* 
 			Create online map:
 			1. Find keypoints in each image
