@@ -6,8 +6,10 @@
 
 ImageReader::ImageReader()
 {
-    folderPath = "images/";
-    imageBaseName = "et00";
+    //folderPath = "images/";
+    //imageBaseName = "et00";
+	folderPath = "images2/";
+    imageBaseName = "p00";
     imageAmount = 9;
 
     currentImage = 0;
@@ -24,9 +26,9 @@ void ImageReader::setImageBuffers(QImage *im1, QImage *im2){
 
 bool ImageReader::getNextImage()
 {
-    // TODO read even / odd
     QString currentPath = getNextImagePath();
     QImageReader reader(currentPath);
+	reader.setScaledSize(QSize(640,480));
 
     if (reader.canRead()){
         if ((currentImage%2)==1){

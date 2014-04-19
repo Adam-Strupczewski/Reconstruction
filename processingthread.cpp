@@ -145,7 +145,55 @@ void ProcessingThread::run()
 				cv::Mat H = cv::findHomography( pts1, pts2, CV_RANSAC );
 				LOG(Debug, "Calculated homography");
 				*/
+		
+				// DEBUG - Drawing matches
+				cv::Mat img_matches;
+				cv::drawMatches(sceneModel->frames[idx1], sceneModel->getKeypoints(idx1), 
+								sceneModel->frames[idx2], sceneModel->getKeypoints(idx2),
+								goodMatches, img_matches);
+				imshow( "Good Matches", img_matches );
+				cv::waitKey(0);
 
+				// Set camera parameters - necessary for reconstruction
+				cv::Matx34d P,P1;
+				cv::Mat K;
+				cv::Mat_<double> Kinv;
+				cv::Mat distortion_coeff;
+				std::vector<CloudPoint> pointcloud;
+
+				/*cv::FileStorage fs;
+				fs.open("../out_camera_data.yml",cv::FileStorage::READ);
+				fs["camera_matrix"]>>cam_matrix;
+				fs["distortion_coefficients"]>>distortion_coeff;*/
+
+				P = cv::Matx34d(1,0,0,0,
+								0,1,0,0,
+								0,0,1,0);
+				P1 = cv::Matx34d(1,0,0,50,
+								0,1,0,0,
+								0,0,1,0);
+
+				K = cv::Mat::eye(3, 3, CV_64F);
+				distortion_coeff = cv::Mat::zeros(8, 1, CV_64F);
+				invert(K, Kinv); //get inverse of camera matrix
+
+				// Calculate camera matrices from fundamental matrix
+				std::vector<cv::KeyPoint> keypoints1Refined;
+				std::vector<cv::KeyPoint> keypoints2Refined;
+
+				findCameraMatrices(K, Kinv, distortion_coeff, 
+									sceneModel->getKeypoints(idx1), sceneModel->getKeypoints(idx1), 
+									keypoints1Refined, keypoints2Refined, P, P1, goodMatches, pointcloud);
+								
+				// DEBUG - Drawing matches that survived the fundamental matrix
+				cv::drawMatches(sceneModel->frames[idx1], sceneModel->getKeypoints(idx1), 
+								sceneModel->frames[idx2], sceneModel->getKeypoints(idx2),
+								goodMatches, img_matches, cv::Scalar(0,0,255));
+				imshow( "Good Matches After F Refinement", img_matches );
+				cv::waitKey(0);
+
+				triangulatePoints();
+							
 				// Assuming we have two images appropriate for initialization - calculate stereo
 				// For this we need the 5-point algorithm and triangulation
 				// TODO Move this to the correct place
@@ -153,20 +201,12 @@ void ProcessingThread::run()
 				// End of stereo initialization
 				LOG(Debug, "Initialized stereo model");
 
-				
-				// DEBUG - Drawing matches
-				cv::Mat img_matches;
-				cv::drawMatches(sceneModel->frames[idx1], sceneModel->getKeypoints(idx1), 
-								sceneModel->frames[idx2], sceneModel->getKeypoints(idx2),
-								goodMatches, img_matches);
-				imshow( "Good Matches & Object detection", img_matches );
-				cv::waitKey(0);
-				
+
 			}
 
 			
 			/* 
-			Create online map:
+			Create online map (PTAM):
 			1. Find keypoints in each image
 			2. Match keypoints from each image to previous keypoints
 			3. Initialize 3D scene from stereo pair using 5-point algorithm & select scale
@@ -175,12 +215,12 @@ void ProcessingThread::run()
 			*/
 
 			/*
-			 Bundler:
-			 Compute matches for each image pair using ANN (Arya, et al. [1998])
-			 Robustly estimate fundamental matrix for each pair using Ransac
-			 Find matching images
-			 Perform alignment - find homographies, starting from best matches
-			 Update global model, refine using bundle adjustment
+			Bundler:
+			1. Compute matches for each image pair using ANN (Arya, et al. [1998])
+			2. Robustly estimate fundamental matrix for each pair using Ransac
+			3. Find matching images
+			4. Perform alignment - find homographies, starting from best matches
+			5. Update global model, refine using bundle adjustment
 			 */
             emit frameProcessed();
         }
@@ -261,31 +301,37 @@ bool ProcessingThread::findMatches(int idx1, int idx2, std::vector< cv::DMatch >
 
 	// Find matches
 	//cv::FlannBasedMatcher matcher;
-	cv::BFMatcher matcher( cv::NORM_L1, true );
+	cv::BFMatcher matcher( cv::NORM_L1, true ); // Using cross-checking as an alternative to ratio checking
 	std::vector< cv::DMatch > matches;
 
-
 	////////////////////////////////////////////
-
+	
+	// First option - simple matching
 	//matcher.match( descriptors1, descriptors2, matches );
 		
 	////////////////////////////////////////////
 	
+	// Second option - more sophisticated matching
 	std::vector<double> dists;
 	if (matches.size() == 0) {
 		std::vector<std::vector<cv::DMatch> > nn_matches;
+		// If cross-checking is used, last parameter of knnmatch has to be 1!
 		matcher.knnMatch(descriptors1,descriptors2,nn_matches,1);
 		matches.clear();
 		for(int i=0;i<nn_matches.size();i++) {
 			if(nn_matches[i].size()>0) {
-				// If there are matches, push back the best match
-				matches.push_back(nn_matches[i][0]);
-				// Get the distance of this match
-				double dist = matches.back().distance;
-				// Insert distance to distance vector
-				if(fabs(dist) > 10000) dist = 1.0;
-				matches.back().distance = dist;
-				dists.push_back(dist);
+				// Take best match only if it is sufficiently better than the second best match - 
+				// Alternatively use cross-checking
+				//if(nn_matches[i].size()==1 || (nn_matches[i][0].distance) < 0.6*(nn_matches[i][1].distance))
+				//{
+					matches.push_back(nn_matches[i][0]);
+					// Get the distance of this match
+					double dist = matches.back().distance;
+					// Insert distance to distance vector
+					if(fabs(dist) > 10000) dist = 1.0;
+					matches.back().distance = dist;
+					dists.push_back(dist);
+				//}
 			}
 		}
 	}
@@ -309,13 +355,14 @@ bool ProcessingThread::findMatches(int idx1, int idx2, std::vector< cv::DMatch >
 	std::vector< cv::DMatch > goodMatches;
 
 	// Eliminate any re-matching of training points (multiple queries to one training)
-	double cutoff = 3.0*min_dist;
+	double cutoff = 4.0*min_dist;
 	std::set<int> existing_trainIdx;
 	for(unsigned int i = 0; i < matches.size(); i++ )
 	{ 
 		//"normalize" matching: somtimes imgIdx is the one holding the trainIdx
 		if (matches[i].trainIdx <= 0) {
 			matches[i].trainIdx = matches[i].imgIdx;
+			LOG(Info, "Weird match - rematching");
 		}
 		
 		int tidx = matches[i].trainIdx;
@@ -331,6 +378,26 @@ bool ProcessingThread::findMatches(int idx1, int idx2, std::vector< cv::DMatch >
 
 	LOG(Info, "Number of matches after refinement: ", (int)goodMatches.size());
 
+	// Optional - filter matches using F matrix with RANSAC
+	// Currently this is planned to be done later...
+	/*
+    std::vector<uchar> inliers(points1.size(),0);
+    cv::Mat fundemental= cv::findFundamentalMat(cv::Mat(points1),cv::Mat(points2),inliers,CV_FM_RANSAC,distance,confidence); // confidence probability
+    // extract the surviving (inliers) matches
+    std::vector<uchar>::const_iterator
+    itIn= inliers.begin();
+    std::vector<cv::DMatch>::const_iterator
+    itM= matches.begin();
+    // for all matches
+    for ( ;itIn!= inliers.end(); ++itIn, ++itM)
+    {
+        if (*itIn)
+        { // it is a valid match
+            goodMatches.push_back(*itM);
+        }
+    }
+	*/
+
 	// Check if there are sufficient good matches
 	if (goodMatches.size() < 8){
 		LOG(Debug, "Insufficient good matches to find homography");
@@ -340,5 +407,83 @@ bool ProcessingThread::findMatches(int idx1, int idx2, std::vector< cv::DMatch >
 	matchesOut = goodMatches;
 	
 	LOG(Debug, "Finished finding matches");
+	return true;
+}
+
+bool ProcessingThread::findCameraMatrices(const cv::Mat& K, 
+						const cv::Mat& Kinv, 
+						const cv::Mat& distcoeff,
+						const std::vector<cv::KeyPoint>& keypoints1,
+						const std::vector<cv::KeyPoint>& keypoints2,
+						std::vector<cv::KeyPoint>& keypoints1_refined,
+						std::vector<cv::KeyPoint>& keypoints2_refined,
+						cv::Matx34d& P,
+						cv::Matx34d& P1,
+						std::vector<cv::DMatch>& matches,
+						std::vector<CloudPoint>& outCloud){
+
+	cv::Mat F = findFundamentalMatrix(keypoints1,keypoints2,keypoints1_refined,keypoints2_refined,matches);
+
+	LOG(Debug, "Finished calculating camera matrices");
+	return true;
+}
+
+cv::Mat ProcessingThread::findFundamentalMatrix(const std::vector<cv::KeyPoint>& keypoints1,
+							const std::vector<cv::KeyPoint>& keypoints2,
+							std::vector<cv::KeyPoint>& keypoints1_refined,
+							std::vector<cv::KeyPoint>& keypoints2_refined,
+							std::vector<cv::DMatch>& matches)
+{
+	// Try to eliminate keypoints based on the fundamental matrix
+	std::vector<uchar> status(keypoints1.size());
+
+	keypoints1_refined.clear(); 
+	keypoints2_refined.clear();
+	
+	// Initialize matching point structures
+	std::vector<cv::KeyPoint> keypoints1_tmp;
+	std::vector<cv::KeyPoint> keypoints2_tmp;
+	if (matches.size() <= 0) {
+		keypoints1_tmp = keypoints1;
+		keypoints2_tmp = keypoints2;
+	} else {
+		for (unsigned int i=0; i<matches.size(); i++) {
+			keypoints1_tmp.push_back(keypoints1[matches[i].queryIdx]);
+			keypoints2_tmp.push_back(keypoints2[matches[i].trainIdx]);
+		}	
+	}
+	
+	cv::Mat F;
+	{
+		std::vector<cv::Point2f> pts1,pts2;
+		for (unsigned int i=0; i<keypoints1_tmp.size(); i++) pts1.push_back(keypoints1_tmp[i].pt);
+		for (unsigned int i=0; i<keypoints2_tmp.size(); i++) pts2.push_back(keypoints2_tmp[i].pt);
+
+		double minVal,maxVal;
+		cv::minMaxIdx(pts1,&minVal,&maxVal);
+		//F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 0.006 * maxVal, 0.99, status); //threshold from [Snavely07 4.1]
+		F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 10, 0.99, status);
+	}
+	
+	std::vector<cv::DMatch> new_matches;
+	LOG(Info, "Number of points kept by Ransac: ", cv::countNonZero(status));
+
+	for (unsigned int i=0; i<status.size(); i++) {
+		if (status[i]) 
+		{
+			keypoints1_refined.push_back(keypoints1_tmp[i]);
+			keypoints2_refined.push_back(keypoints2_tmp[i]);
+			new_matches.push_back(matches[i]);
+		}
+	}	
+	
+	// Keep only those points that "survived" the fundamental matrix
+	matches = new_matches; 
+
+	LOG(Debug, "Finished calculating fundamental matrix");
+	return F;
+}
+
+bool ProcessingThread::triangulatePoints(){
 	return true;
 }
