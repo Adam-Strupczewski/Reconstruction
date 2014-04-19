@@ -21,13 +21,21 @@ public:
 signals:
     void frameProcessed();
     void queueFull();
+
 public:
     void stop();
     void addFrameToProcessingQueue(QImage frame);
 
 private:
     virtual void run();
+
 private:
+	bool extractKeypoints(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints);
+	bool extractDescriptors(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors);
+	bool findMatches(int idx1, int idx2, std::vector< cv::DMatch > &matches);
+	bool findCameraMatrices();
+	bool triangulatePoints();
+
     QQueue<QImage> queue;
     int queueMaxLength;
     bool stopped;

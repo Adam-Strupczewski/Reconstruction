@@ -11,6 +11,8 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+typedef std::pair<int, int> MatchKey;
+
 class SceneModel
 {
 
@@ -20,6 +22,7 @@ public:
 
 	void addNewFramePoints(std::vector<cv::KeyPoint> point);
 	void addNewFrameDescriptors(cv::Mat descriptors);
+	void addMatches(int i, int j, std::vector< cv::DMatch > macthes);
 
 	std::vector<cv::KeyPoint> getKeypoints(int frame);
 	cv::Mat getDescriptors(int frame);
@@ -34,6 +37,9 @@ private:
 
 	// Vector of Mts with descriptors for each image
 	std::vector<cv::Mat> descriptorDatabase;
+
+	// Vector with matches assigned to image pairs
+	std::map<std::pair<int, int>, std::vector< cv::DMatch >> matchMap;
 
 	// Current scene model - all computed 3D scene feature points
 	std::vector<Point3Df> allPoints;

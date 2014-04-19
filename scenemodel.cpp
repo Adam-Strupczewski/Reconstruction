@@ -22,6 +22,11 @@ void SceneModel::addNewFrameDescriptors(cv::Mat descriptors){
 	mutex.unlock();
 }
 
+void SceneModel::addMatches(int i, int j, std::vector< cv::DMatch > matches){
+	MatchKey key = std::make_pair(i,j);
+	matchMap.insert(std::make_pair(key, matches));
+}
+
 std::vector<cv::KeyPoint> SceneModel::getKeypoints(int frame){
 
 	std::vector<cv::KeyPoint> pts;

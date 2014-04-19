@@ -38,12 +38,11 @@ void ImageReadingThread::run()
         if (imageReader.getNextImage()){
             emit imageReady();
         }else{
-            // TODO
+			LOG(Debug, "Read all images");
+           break;
         }
 
         // No frames in queue, sleep for a short while
         msleep(THREAD_SLEEP_MS);
     }
-
-    exit(0);
 }
