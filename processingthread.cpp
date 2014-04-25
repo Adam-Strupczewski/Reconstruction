@@ -10,6 +10,9 @@
 
 #include <opencv2/nonfree/features2d.hpp>
 
+#define DECOMPOSE_SVD
+#define SVD_OPENCV
+
 static const int QUEUE_MAX_LENGTH = 5;
 static const int THREAD_SLEEP_MS = 25;
 
@@ -21,11 +24,13 @@ ProcessingThread::ProcessingThread(QObject *parent) :
 ProcessingThread::~ProcessingThread()
 {
     stop();
+	delete featureHandler;
 }
 
 void ProcessingThread::initialize(SceneModel *sceneModel)
 {
 	this->sceneModel = sceneModel;
+	this->featureHandler = new FeatureHandler();
 }
 
 void ProcessingThread::stop()
@@ -88,11 +93,11 @@ void ProcessingThread::run()
 
             // Extract keypoints
 			std::vector<cv::KeyPoint> keypoints;
-			extractKeypoints(img, keypoints);
+			featureHandler->extractKeypoints(img, keypoints);
 
 			// Extract descriptors
             cv::Mat descriptors;
-			extractDescriptors(img, keypoints, descriptors);
+			featureHandler->extractDescriptors(img, keypoints, descriptors);
 
 			if(imageGrayScale)
             {
@@ -124,27 +129,16 @@ void ProcessingThread::run()
 				*/
 
 				std::vector< cv::DMatch > goodMatches;
-				findMatches(idx1, idx2, goodMatches);
+					// Get keypoints & descriptors
+				std::vector<cv::KeyPoint> keypoints1 = sceneModel->getKeypoints(idx1);
+				cv::Mat descriptors1 = sceneModel->getDescriptors(idx1);
+				std::vector<cv::KeyPoint> keypoints2 = sceneModel->getKeypoints(idx2);
+				cv::Mat descriptors2 = sceneModel->getDescriptors(idx2);
+				featureHandler->findMatches(idx1, idx2, keypoints1, descriptors1, keypoints2, descriptors2, goodMatches);
 
 				// Store good matches in model
 				sceneModel->addMatches(idx1,idx2,goodMatches);
 				LOG(Debug, "Stored matches");
-
-				/*
-				// Calculate homography
-				std::vector<cv::Point2f> pts1;
-				std::vector<cv::Point2f> pts2;
-
-				for( int i = 0; i < goodMatches.size(); i++ )
-				{
-					//-- Get the keypoints from the good matches
-					pts1.push_back( keypoints[ goodMatches[i].queryIdx ].pt );
-					pts2.push_back( keypointsPrevious[ goodMatches[i].trainIdx ].pt );
-				}
-
-				cv::Mat H = cv::findHomography( pts1, pts2, CV_RANSAC );
-				LOG(Debug, "Calculated homography");
-				*/
 		
 				// DEBUG - Drawing matches
 				cv::Mat img_matches;
@@ -174,6 +168,14 @@ void ProcessingThread::run()
 								0,0,1,0);
 
 				K = cv::Mat::eye(3, 3, CV_64F);
+				K.at<double>(0,0) = 115;
+				K.at<double>(1,1) = 115;
+				K.at<double>(0,2) = 320;
+				K.at<double>(1,2) = 240;
+
+				LOG(Debug, "Camera internal matrix: ");
+				LOG(Debug, K);
+
 				distortion_coeff = cv::Mat::zeros(8, 1, CV_64F);
 				invert(K, Kinv); //get inverse of camera matrix
 
@@ -232,184 +234,6 @@ void ProcessingThread::run()
     }
 }
 
-bool ProcessingThread::extractKeypoints(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints)
-{
-	int minHessian = 100;
-	cv::SurfFeatureDetector detector(minHessian);
-    //cv::FeatureDetector * detector = new cv::BRISK();
-    detector.detect(img, keypoints);
-    //delete detector;
-	if(keypoints.size()==0){
-		LOG(Debug, "No keypoints found!");
-		return false;
-	}
-
-	LOG(Debug, "Finished extracting keypoints");
-	return true;
-}
-
-bool ProcessingThread::extractDescriptors(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors)
-{
-    if(keypoints.size())
-    {
-		cv::SurfDescriptorExtractor extractor;
-        //cv::DescriptorExtractor * extractor = new cv::BRISK();
-		//cv::DescriptorExtractor * extractor = new cv::SIFT();
-		//cv::DescriptorExtractor * extractor = new cv::BriefDescriptorExtractor();
-		//cv::DescriptorExtractor * extractor = new cv::FREAK();
-		//cv::DescriptorExtractor * extractor = new cv::ORB();
-        extractor.compute(img, keypoints, descriptors);
-        //delete extractor;
-
-        if((int)keypoints.size() != descriptors.rows)
-        {
-            LOG(Debug, "Error extracting descriptors!");
-        }else{
-			LOG(Debug, "Descriptors extracted successfully");
-		}
-
-    }
-    else
-    {
-        LOG(Debug, "WARNING: no features detected");
-		return false;
-    }
-
-	LOG(Debug, "Finished calculating descriptors");
-	return true;
-}
-
-bool ProcessingThread::findMatches(int idx1, int idx2, std::vector< cv::DMatch > &matchesOut)
-{
-	LOG(Debug, "Calculating matches...");
-
-	// Get keypoints & descriptors
-	std::vector<cv::KeyPoint> keypoints1 = sceneModel->getKeypoints(idx1);
-	cv::Mat descriptors1 = sceneModel->getDescriptors(idx1);
-	std::vector<cv::KeyPoint> keypoints2 = sceneModel->getKeypoints(idx2);
-	cv::Mat descriptors2 = sceneModel->getDescriptors(idx2);
-			
-	LOG(Info, "Image 1 number of keypoints: ", (int)keypoints1.size());
-	LOG(Info, "Image 1 number of descriptors: ", (int)descriptors1.size().height);
-	LOG(Info, "Image 2 number of keypoints: ", (int)keypoints2.size());
-	LOG(Info, "Image 2 number of descriptors: ", (int)descriptors2.size().height);
-
-	if (descriptors1.empty() || descriptors2.empty()){
-		LOG(Warn, "No descriptors for the previous image");
-		return false;
-	}
-
-	// Find matches
-	//cv::FlannBasedMatcher matcher;
-	cv::BFMatcher matcher( cv::NORM_L1, true ); // Using cross-checking as an alternative to ratio checking
-	std::vector< cv::DMatch > matches;
-
-	////////////////////////////////////////////
-	
-	// First option - simple matching
-	//matcher.match( descriptors1, descriptors2, matches );
-		
-	////////////////////////////////////////////
-	
-	// Second option - more sophisticated matching
-	std::vector<double> dists;
-	if (matches.size() == 0) {
-		std::vector<std::vector<cv::DMatch> > nn_matches;
-		// If cross-checking is used, last parameter of knnmatch has to be 1!
-		matcher.knnMatch(descriptors1,descriptors2,nn_matches,1);
-		matches.clear();
-		for(int i=0;i<nn_matches.size();i++) {
-			if(nn_matches[i].size()>0) {
-				// Take best match only if it is sufficiently better than the second best match - 
-				// Alternatively use cross-checking
-				//if(nn_matches[i].size()==1 || (nn_matches[i][0].distance) < 0.6*(nn_matches[i][1].distance))
-				//{
-					matches.push_back(nn_matches[i][0]);
-					// Get the distance of this match
-					double dist = matches.back().distance;
-					// Insert distance to distance vector
-					if(fabs(dist) > 10000) dist = 1.0;
-					matches.back().distance = dist;
-					dists.push_back(dist);
-				//}
-			}
-		}
-	}
-
-	////////////////////////////////////////////
-
-	LOG(Debug, "Calculated coarse matches");
-	LOG(Info, "Number of coarse matches: ", (int)matches.size());
-	
-	double max_dist = 0; double min_dist = 0.0;
-	cv::minMaxIdx(dists,&min_dist,&max_dist);
-	
-	LOG(Info, "-- Max dist : ", max_dist);
-	LOG(Info, "-- Min dist : ", min_dist);
-	
-	if (min_dist < 0.02) {
-		min_dist = 0.02;
-	}
-	
-	// Select only good matches
-	std::vector< cv::DMatch > goodMatches;
-
-	// Eliminate any re-matching of training points (multiple queries to one training)
-	double cutoff = 4.0*min_dist;
-	std::set<int> existing_trainIdx;
-	for(unsigned int i = 0; i < matches.size(); i++ )
-	{ 
-		//"normalize" matching: somtimes imgIdx is the one holding the trainIdx
-		if (matches[i].trainIdx <= 0) {
-			matches[i].trainIdx = matches[i].imgIdx;
-			LOG(Info, "Weird match - rematching");
-		}
-		
-		int tidx = matches[i].trainIdx;
-		if(matches[i].distance > 0.0 && matches[i].distance < cutoff) {
-			if( existing_trainIdx.find(tidx) == existing_trainIdx.end() && 
-			   tidx >= 0 && tidx < (int)(keypoints2.size()) ) 
-			{
-				goodMatches.push_back( matches[i]);
-				existing_trainIdx.insert(tidx);
-			}
-		}
-	}
-
-	LOG(Info, "Number of matches after refinement: ", (int)goodMatches.size());
-
-	// Optional - filter matches using F matrix with RANSAC
-	// Currently this is planned to be done later...
-	/*
-    std::vector<uchar> inliers(points1.size(),0);
-    cv::Mat fundemental= cv::findFundamentalMat(cv::Mat(points1),cv::Mat(points2),inliers,CV_FM_RANSAC,distance,confidence); // confidence probability
-    // extract the surviving (inliers) matches
-    std::vector<uchar>::const_iterator
-    itIn= inliers.begin();
-    std::vector<cv::DMatch>::const_iterator
-    itM= matches.begin();
-    // for all matches
-    for ( ;itIn!= inliers.end(); ++itIn, ++itM)
-    {
-        if (*itIn)
-        { // it is a valid match
-            goodMatches.push_back(*itM);
-        }
-    }
-	*/
-
-	// Check if there are sufficient good matches
-	if (goodMatches.size() < 8){
-		LOG(Debug, "Insufficient good matches to find homography");
-		return false;
-	}
-
-	matchesOut = goodMatches;
-	
-	LOG(Debug, "Finished finding matches");
-	return true;
-}
-
 bool ProcessingThread::findCameraMatrices(const cv::Mat& K, 
 						const cv::Mat& Kinv, 
 						const cv::Mat& distcoeff,
@@ -422,7 +246,55 @@ bool ProcessingThread::findCameraMatrices(const cv::Mat& K,
 						std::vector<cv::DMatch>& matches,
 						std::vector<CloudPoint>& outCloud){
 
+	// Matches will get substituted to filtered ones
 	cv::Mat F = findFundamentalMatrix(keypoints1,keypoints2,keypoints1_refined,keypoints2_refined,matches);
+
+	if(matches.size() < 15) { // || ((double)keypoints1.size() / (double)keypoints1_refined.size()) < 0.25
+		LOG(Debug, "Insufficient number of matches after F refinement: ", (int)matches.size());
+		return false;
+	}
+
+	// Essential matrix: compute then extract cameras [R|t]
+	cv::Mat_<double> E = K.t() * F * K; //according to HZ (Equation 9.12)
+
+	// Check validity according to http://en.wikipedia.org/wiki/Essential_matrix#Properties_of_the_essential_matrix
+	if(fabsf(determinant(E)) > 1e-07) {
+		LOG(Debug, "Essential matrix does not satisfy internal constraints! Determinant is too large: ", determinant(E));
+		P1 = 0;
+		return false;
+	}
+
+	cv::Mat_<double> R1(3,3);
+	cv::Mat_<double> R2(3,3);
+	cv::Mat_<double> t1(1,3);
+	cv::Mat_<double> t2(1,3);
+
+	// Using the essential matrix, decompose E to P' , HZ (Result 9.19)
+	{			
+		if (!decomposeEtoRandT(E,R1,R2,t1,t2)){
+			LOG(Debug, "Unable to decompose essential matrix");
+			return false;
+		}
+
+		if(determinant(R1)+1.0 < 1e-09) {
+			//according to http://en.wikipedia.org/wiki/Essential_matrix#Showing_that_it_is_valid
+			LOG(Info, "Essential matrix should have sign flipped! Determinant is ", determinant(E));
+			E = -E;
+			decomposeEtoRandT(E,R1,R2,t1,t2);
+		}
+
+		if (!checkCoherentRotation(R1)) {
+			LOG(Debug, "Resulting rotation is not coherent");
+			P1 = 0;
+			return false;
+		}
+			
+		P1 = cv::Matx34d(R1(0,0),	R1(0,1),	R1(0,2),	t1(0),
+						R1(1,0),	R1(1,1),	R1(1,2),	t1(1),
+						R1(2,0),	R1(2,1),	R1(2,2),	t1(2));
+		LOG(Info, "Testing P1: ");
+		LOG(Info, cv::Mat(P1));
+	}
 
 	LOG(Debug, "Finished calculating camera matrices");
 	return true;
@@ -482,6 +354,94 @@ cv::Mat ProcessingThread::findFundamentalMatrix(const std::vector<cv::KeyPoint>&
 
 	LOG(Debug, "Finished calculating fundamental matrix");
 	return F;
+}
+
+bool ProcessingThread::decomposeEtoRandT(cv::Mat_<double>& E,
+						cv::Mat_<double>& R1,
+						cv::Mat_<double>& R2,
+						cv::Mat_<double>& t1,
+						cv::Mat_<double>& t2)
+{
+	// Show E matrix and other matrices on the way...
+
+#ifdef DECOMPOSE_SVD
+
+	// Using HZ E decomposition
+	cv::Mat svd_u, svd_vt, svd_w;
+	takeSVDOfE(E,svd_u,svd_vt,svd_w);
+
+	// Check if first and second singular values are the same (as they should be)
+	LOG(Info, "Singular value 1: ", svd_w.at<double>(0));
+	LOG(Info, "Singular value 2: ", svd_w.at<double>(1));
+
+	double singular_values_ratio = fabsf(svd_w.at<double>(0) / svd_w.at<double>(1));
+	if(singular_values_ratio>1.0) singular_values_ratio = 1.0/singular_values_ratio; // flip ratio to keep it [0,1]
+	if (singular_values_ratio < 0.7) {
+		LOG(Debug, "Singular values are too far apart, ratio (min 0.7): ", singular_values_ratio);
+		return false;
+	}
+
+	cv::Matx33d W(0,-1,0,				//HZ 9.13
+				1,0,0,
+				0,0,1);
+	cv::Matx33d Wt(0,1,0,
+				-1,0,0,
+				0,0,1);
+	R1 = svd_u * cv::Mat(W) * svd_vt;	//HZ 9.19
+	R2 = svd_u * cv::Mat(Wt) * svd_vt;	//HZ 9.19
+	t1 = svd_u.col(2);	//u3
+	t2 = -svd_u.col(2); //u3
+#else
+	//Using Horn E decomposition
+	DecomposeEssentialUsingHorn90(E[0],R1[0],R2[0],t1[0],t2[0]);
+#endif
+	return true;
+}
+
+void ProcessingThread::takeSVDOfE(cv::Mat_<double>& E, 
+									cv::Mat& svd_u, 
+									cv::Mat& svd_vt, 
+									cv::Mat& svd_w) {
+#ifdef SVD_OPENCV
+	// Using OpenCV's SVD, allow to modify input matrix (speeds up)
+	cv::SVD svd(E,cv::SVD::MODIFY_A);
+	svd_u = svd.u;
+	svd_vt = svd.vt;
+	svd_w = svd.w;
+#else
+	//Using Eigen's SVD
+	cout << "Eigen3 SVD..\n";
+	Eigen::Matrix3f  e = Eigen::Map<Eigen::Matrix<double,3,3,Eigen::RowMajor> >((double*)E.data).cast<float>();
+	Eigen::JacobiSVD<Eigen::MatrixXf> svd(e, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	Eigen::MatrixXf Esvd_u = svd.matrixU();
+	Eigen::MatrixXf Esvd_v = svd.matrixV();
+	svd_u = (Mat_<double>(3,3) << Esvd_u(0,0), Esvd_u(0,1), Esvd_u(0,2),
+						  Esvd_u(1,0), Esvd_u(1,1), Esvd_u(1,2), 
+						  Esvd_u(2,0), Esvd_u(2,1), Esvd_u(2,2)); 
+	Mat_<double> svd_v = (Mat_<double>(3,3) << Esvd_v(0,0), Esvd_v(0,1), Esvd_v(0,2),
+						  Esvd_v(1,0), Esvd_v(1,1), Esvd_v(1,2), 
+						  Esvd_v(2,0), Esvd_v(2,1), Esvd_v(2,2));
+	svd_vt = svd_v.t();
+	svd_w = (Mat_<double>(1,3) << svd.singularValues()[0] , svd.singularValues()[1] , svd.singularValues()[2]);
+#endif
+	
+	LOG(Info, "--------------------- SVD ---------------------");
+	LOG(Info, "Calculated SVD (U,W,Vt): ");
+	LOG(Info, svd_u); 	LOG(Info, " ");
+	LOG(Info, svd_w);	LOG(Info, " ");
+	LOG(Info, svd_vt);	LOG(Info, " ");
+	LOG(Info, "-----------------------------------------------");
+}
+
+bool ProcessingThread::checkCoherentRotation(cv::Mat_<double>& R) {
+	std::cout << "R; " << R << std::endl;
+	
+	if(fabsf(determinant(R))-1.0 > 1e-07) {
+		LOG(Info, "Chcecking rotaion : det(R) != +-1.0, this is not a rotation matrix");
+		return false;
+	}
+
+	return true;
 }
 
 bool ProcessingThread::triangulatePoints(){
