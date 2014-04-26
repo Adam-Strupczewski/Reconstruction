@@ -3,4 +3,9 @@
 
 #define USE_CAMERA false
 
-#endif // SETTINGS_H
+#define __DEBUG__DISPLAY__
+
+#define DECOMPOSE_E_USING_SVD
+#define SVD_USING_OPENCV
+
+#endif

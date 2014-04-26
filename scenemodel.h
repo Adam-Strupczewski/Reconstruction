@@ -1,6 +1,7 @@
 #ifndef SCENEMODEL_H
 #define SCENEMODEL_H
 
+#include "settings.h"
 #include "structs.h"
 
 #include <vector>

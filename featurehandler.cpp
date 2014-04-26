@@ -15,36 +15,50 @@ FeatureHandler::FeatureHandler(){
 }
 
 FeatureHandler::~FeatureHandler(){
+	delete detector;
+	delete extractor;
+}
+
+void FeatureHandler::initialize()
+{
+	int minHessian = 100;
+	detector = new cv::SURF(minHessian);
+	//detector = new cv::BRISK();
+	//detector = new cv::MSER();
+
+
+	//extractor = new cv::BRISK();
+	extractor = new cv::SIFT();
+	//extractor = new cv::SURF();
+	//extractor = new cv::BRISK();
+	//extractor = new cv::BriefDescriptorExtractor();
+	//extractor = new cv::FREAK();
+	//extractor = new cv::ORB();
 }
 
 bool FeatureHandler::extractKeypoints(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints)
 {
-	int minHessian = 100;
-	cv::SurfFeatureDetector detector(minHessian);
-    //cv::FeatureDetector * detector = new cv::BRISK();
-    detector.detect(img, keypoints);
+	double time = cv::getTickCount();
+
+    detector->detect(img, keypoints);
     //delete detector;
 	if(keypoints.size()==0){
 		LOG(Debug, "No keypoints found!");
 		return false;
 	}
 
-	LOG(Debug, "Finished extracting keypoints");
+	time = ((double)cv::getTickCount() - time)/cv::getTickFrequency();
+	LOG(Debug, "Finished extracting keypoints in time: ", time);
 	return true;
 }
 
 bool FeatureHandler::extractDescriptors(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors)
 {
+	double time = cv::getTickCount();
+
     if(keypoints.size())
     {
-		//cv::SurfDescriptorExtractor extractor;
-        //cv::DescriptorExtractor * extractor = new cv::BRISK();
-		cv::DescriptorExtractor * extractor = new cv::SIFT();
-		//cv::DescriptorExtractor * extractor = new cv::BriefDescriptorExtractor();
-		//cv::DescriptorExtractor * extractor = new cv::FREAK();
-		//cv::DescriptorExtractor * extractor = new cv::ORB();
         extractor->compute(img, keypoints, descriptors);
-        delete extractor;
 
         if((int)keypoints.size() != descriptors.rows)
         {
@@ -52,7 +66,6 @@ bool FeatureHandler::extractDescriptors(cv::Mat &img, std::vector<cv::KeyPoint> 
         }else{
 			LOG(Debug, "Descriptors extracted successfully");
 		}
-
     }
     else
     {
@@ -60,13 +73,15 @@ bool FeatureHandler::extractDescriptors(cv::Mat &img, std::vector<cv::KeyPoint> 
 		return false;
     }
 
-	LOG(Debug, "Finished calculating descriptors");
+	time = ((double)cv::getTickCount() - time)/cv::getTickFrequency();
+	LOG(Debug, "Finished calculating descriptors in time: ", time);
 	return true;
 }
 
 bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &keypoints1, cv::Mat &descriptors1, 
 	std::vector<cv::KeyPoint> &keypoints2, cv::Mat &descriptors2, std::vector< cv::DMatch > &matchesOut)
 {
+	double time = cv::getTickCount();
 	LOG(Debug, "Calculating matches...");
 			
 	LOG(Info, "Image 1 number of keypoints: ", (int)keypoints1.size());
@@ -160,7 +175,7 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 	LOG(Info, "Number of matches after refinement: ", (int)goodMatches.size());
 
 	// Optional - filter matches using F matrix with RANSAC
-	// Currently this is planned to be done later...
+	// Currently this is being done later...
 	/*
     std::vector<uchar> inliers(points1.size(),0);
     cv::Mat fundemental= cv::findFundamentalMat(cv::Mat(points1),cv::Mat(points2),inliers,CV_FM_RANSAC,distance,confidence); // confidence probability
@@ -187,6 +202,7 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 
 	matchesOut = goodMatches;
 	
-	LOG(Debug, "Finished finding matches");
+	time = ((double)cv::getTickCount() - time)/cv::getTickFrequency();
+	LOG(Debug, "Finished finding matches in time: ", time);
 	return true;
 }

@@ -10,6 +10,8 @@ public:
     explicit FeatureHandler();
     virtual ~FeatureHandler();
 
+	void initialize();
+
 	bool extractKeypoints(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints);
 
 	bool extractDescriptors(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints, cv::Mat &descriptors);
@@ -17,6 +19,9 @@ public:
 	bool findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &keypoints1, cv::Mat &descriptors1, 
 	std::vector<cv::KeyPoint> &keypoints2, cv::Mat &descriptors2, std::vector< cv::DMatch > &matchesOut);
 
+private:
+	cv::FeatureDetector * detector;
+	cv::DescriptorExtractor * extractor;
 };
 
 #endif
