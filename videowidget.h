@@ -44,6 +44,8 @@
 #include <QWidget>
 #include <QAbstractVideoSurface>
 
+#include "sfmviewer.h"
+
 #include "videosurface.h"
 #include "processingthread.h"
 #include "scenemodel.h"
@@ -55,7 +57,7 @@ public:
     explicit VideoWidget(QWidget *parent = 0);
     virtual ~VideoWidget();
 
-	void initialize();
+	void initialize(SFMViewer *sfmViewer);
 
     void setImageBuffers(QImage *im1, QImage *im2);
 

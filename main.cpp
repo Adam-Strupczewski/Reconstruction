@@ -41,6 +41,7 @@
 #include "stdafx.h"
 
 #include "mainwindow.h"
+//#include "SFMViewer.h"
 
 #include <QtWidgets>
 
@@ -48,8 +49,17 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    MainWindow cameraWindow;
-    cameraWindow.show();
+   MainWindow cameraWindow;
+   cameraWindow.show();
+
+	// Instantiate the viewer.
+	/*SFMViewer viewer;
+
+	viewer.setWindowTitle("simpleViewer");
+
+	// Make the viewer window visible on screen.
+	viewer.show();*/
+
 
     return app.exec();
 }

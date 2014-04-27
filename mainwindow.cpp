@@ -68,6 +68,9 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
+	sfmViewer = new SFMViewer();
+	ui->sfmLayout->addWidget(sfmViewer);
+
     //Camera devices:
     QByteArray cameraDevice;
 
@@ -103,11 +106,13 @@ MainWindow::MainWindow(QWidget *parent) :
 
 	// Initialize all objects
 	imageThread->initialize();
-	ui->videoWidget->initialize();
+	ui->videoWidget->initialize(sfmViewer);
 }
 
 MainWindow::~MainWindow()
 {
+	delete sfmViewer;
+
     if (USE_CAMERA){
         camera->stop();
         delete camera;

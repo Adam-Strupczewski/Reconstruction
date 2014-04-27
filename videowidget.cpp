@@ -51,7 +51,7 @@
 	 surface = new VideoSurface(this);
  }
 
- void VideoWidget::initialize(){
+ void VideoWidget::initialize(SFMViewer *sfmViewer){
 	 
 	 sceneModel = new SceneModel();
 
@@ -63,6 +63,7 @@
      connect(processor, SIGNAL(queueFull()), this, SLOT(onThreadCongested()));
 
 	 processor->initialize(sceneModel);
+	 processor->setUpdateListener(sfmViewer);
 
      processor->start();
 }

@@ -179,7 +179,15 @@ void ProcessingThread::run()
 				findCameraMatrices(K, Kinv, distortion_coeff, 
 									sceneModel->getKeypoints(idx1), sceneModel->getKeypoints(idx1), 
 									keypoints1Refined, keypoints2Refined, P0, P1, goodMatches, reconstructedPts);
-								
+				
+				// Pass reconstructed points to 3D display		
+				std::vector<cv::Point3d> points;
+				// TODO unnecessary copying
+				for (int i = 0; i < reconstructedPts.size(); ++i) {
+					points.push_back(reconstructedPts[i].pt);
+				}
+				update(points);
+
 				// TODO
 				// We have the reconstructed points from 2 views here
 				// We want to store them and refine them with future images

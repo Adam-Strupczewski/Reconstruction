@@ -5,6 +5,7 @@
 #include <QImage>
 #include <QQueue>
 
+#include "sfmupdatelistener.h"
 #include "scenemodel.h"
 #include "featurehandler.h"
 
@@ -39,6 +40,19 @@ private:
 	QImage currentFrameWithKeypoints;
 	SceneModel *sceneModel;
 	FeatureHandler *featureHandler;
+
+	SfMUpdateListener* listener;
+
+public:
+    void setUpdateListener(SfMUpdateListener *ul)
+    {
+        listener = ul;
+    }
+private:
+    void update(std::vector<cv::Point3d> points)
+    {
+		listener->update(points);
+    }
 };
 
 #endif // PROCESSINGTHREAD_H

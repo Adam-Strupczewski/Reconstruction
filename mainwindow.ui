@@ -6,112 +6,101 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>668</width>
-    <height>422</height>
+    <width>758</width>
+    <height>594</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Camera</string>
   </property>
   <widget class="QWidget" name="centralwidget">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
    <layout class="QGridLayout" name="gridLayout_3">
-    <item row="0" column="2">
-     <widget class="QPushButton" name="stopButton">
-      <property name="text">
-       <string>Stop Video</string>
-      </property>
-     </widget>
+    <item row="4" column="1">
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="VideoWidget" name="videoWidget" native="true">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="baseSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="sfmViewWidget" native="true">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>1</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <widget class="QWidget" name="horizontalLayoutWidget">
+         <property name="geometry">
+          <rect>
+           <x>-1</x>
+           <y>-1</y>
+           <width>471</width>
+           <height>271</height>
+          </rect>
+         </property>
+         <layout class="QHBoxLayout" name="sfmLayout">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetMaximumSize</enum>
+          </property>
+         </layout>
+        </widget>
+       </widget>
+      </item>
+     </layout>
     </item>
-    <item row="0" column="0" rowspan="6">
-     <widget class="QStackedWidget" name="stackedWidget">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-        <horstretch>1</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
+    <item row="0" column="1">
+     <layout class="QGridLayout" name="gridLayout">
+      <property name="sizeConstraint">
+       <enum>QLayout::SetMinimumSize</enum>
       </property>
-      <property name="palette">
-       <palette>
-        <active>
-         <colorrole role="Base">
-          <brush brushstyle="SolidPattern">
-           <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
-           </color>
-          </brush>
-         </colorrole>
-         <colorrole role="Window">
-          <brush brushstyle="SolidPattern">
-           <color alpha="255">
-            <red>145</red>
-            <green>145</green>
-            <blue>145</blue>
-           </color>
-          </brush>
-         </colorrole>
-        </active>
-        <inactive>
-         <colorrole role="Base">
-          <brush brushstyle="SolidPattern">
-           <color alpha="255">
-            <red>255</red>
-            <green>255</green>
-            <blue>255</blue>
-           </color>
-          </brush>
-         </colorrole>
-         <colorrole role="Window">
-          <brush brushstyle="SolidPattern">
-           <color alpha="255">
-            <red>145</red>
-            <green>145</green>
-            <blue>145</blue>
-           </color>
-          </brush>
-         </colorrole>
-        </inactive>
-        <disabled>
-         <colorrole role="Base">
-          <brush brushstyle="SolidPattern">
-           <color alpha="255">
-            <red>145</red>
-            <green>145</green>
-            <blue>145</blue>
-           </color>
-          </brush>
-         </colorrole>
-         <colorrole role="Window">
-          <brush brushstyle="SolidPattern">
-           <color alpha="255">
-            <red>145</red>
-            <green>145</green>
-            <blue>145</blue>
-           </color>
-          </brush>
-         </colorrole>
-        </disabled>
-       </palette>
+      <property name="verticalSpacing">
+       <number>6</number>
       </property>
-      <property name="currentIndex">
-       <number>0</number>
-      </property>
-      <widget class="QWidget" name="viewfinderPage">
-       <layout class="QGridLayout" name="gridLayout_5">
-        <item row="0" column="0">
-         <widget class="VideoWidget" name="videoWidget" native="true"/>
-        </item>
-       </layout>
-      </widget>
-     </widget>
-    </item>
-    <item row="1" column="2">
-     <widget class="QPushButton" name="startButton">
-      <property name="text">
-       <string>Start Video</string>
-      </property>
-     </widget>
+      <item row="0" column="0">
+       <widget class="QPushButton" name="startButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Start Video</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="stopButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Stop Video</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>
@@ -120,7 +109,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>668</width>
+     <width>758</width>
      <height>21</height>
     </rect>
    </property>
@@ -128,8 +117,6 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionStartCamera"/>
-    <addaction name="actionStopCamera"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
@@ -147,21 +134,6 @@
     <string>Exit</string>
    </property>
   </action>
-  <action name="actionStartCamera">
-   <property name="text">
-    <string>Start Camera</string>
-   </property>
-  </action>
-  <action name="actionStopCamera">
-   <property name="text">
-    <string>Stop Camera</string>
-   </property>
-  </action>
-  <action name="actionSettings">
-   <property name="text">
-    <string>Settings</string>
-   </property>
-  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -174,42 +146,10 @@
  <resources/>
  <connections>
   <connection>
-   <sender>actionStartCamera</sender>
-   <signal>triggered()</signal>
-   <receiver>MainWindow</receiver>
-   <slot>startCamera()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>333</x>
-     <y>210</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>actionExit</sender>
    <signal>triggered()</signal>
    <receiver>MainWindow</receiver>
    <slot>close()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>333</x>
-     <y>210</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actionStopCamera</sender>
-   <signal>triggered()</signal>
-   <receiver>MainWindow</receiver>
-   <slot>stopCamera()</slot>
    <hints>
     <hint type="sourcelabel">
      <x>-1</x>
