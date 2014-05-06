@@ -161,8 +161,8 @@ void ProcessingThread::run()
 								0,0,1,0);
 
 				K = cv::Mat::eye(3, 3, CV_64F);
-				K.at<double>(0,0) = 115;
-				K.at<double>(1,1) = 115;
+				K.at<double>(0,0) = 640;
+				K.at<double>(1,1) = 640;
 				K.at<double>(0,2) = 320;
 				K.at<double>(1,2) = 240;
 
@@ -177,7 +177,7 @@ void ProcessingThread::run()
 				std::vector<cv::KeyPoint> keypoints2Refined;
 
 				findCameraMatrices(K, Kinv, distortion_coeff, 
-									sceneModel->getKeypoints(idx1), sceneModel->getKeypoints(idx1), 
+									sceneModel->getKeypoints(idx1), sceneModel->getKeypoints(idx2), 
 									keypoints1Refined, keypoints2Refined, P0, P1, goodMatches, reconstructedPts);
 				
 				// Pass reconstructed points to 3D display		

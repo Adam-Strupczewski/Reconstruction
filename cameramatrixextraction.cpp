@@ -169,7 +169,7 @@ cv::Mat findFundamentalMatrix(const std::vector<cv::KeyPoint>& keypoints1,
 		double minVal,maxVal;
 		cv::minMaxIdx(pts1,&minVal,&maxVal);
 		//F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 0.006 * maxVal, 0.99, status);	//threshold from [Snavely07 4.1]
-		F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 10, 0.99, status);				// AS
+		F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 10, 0.999, status);				// AS
 	}
 	
 	std::vector<cv::DMatch> new_matches;
