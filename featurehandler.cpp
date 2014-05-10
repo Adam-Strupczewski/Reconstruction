@@ -21,24 +21,32 @@ FeatureHandler::~FeatureHandler(){
 
 void FeatureHandler::initialize()
 {
+
+	//cv::initModule_nonfree();
+
 	int minHessian = 100;
 	//detector = new cv::SURF(minHessian);
 	//detector = new cv::BRISK();
 	//detector = new cv::MSER();
+	//detector = new cv::SIFT();
 	detector = new cv::FastFeatureDetector();
+	//detector = cv::FeatureDetector::create("PyramidFAST");
 
 	//extractor = new cv::BRISK();
 	//extractor = new cv::SIFT();
 	//extractor = new cv::SURF();
 	//extractor = new cv::BRISK();
 	//extractor = new cv::BriefDescriptorExtractor();
-	//extractor = new cv::ORB();
-	extractor = new cv::FREAK();
+	extractor = new cv::ORB();
+	//extractor = new cv::FREAK();
 }
 
 bool FeatureHandler::extractKeypoints(cv::Mat &img, std::vector<cv::KeyPoint> &keypoints)
 {
 	double time = cv::getTickCount();
+
+	//cv::Mat m_ = cv::imread("E:\\PROGRAMOWANIE\\workspace-qt\\SfM-Toy-Library-master\\images2\\p000.jpg");
+	//cv::resize(m_,m_,cv::Size(640,480),0,0);
 
     detector->detect(img, keypoints);
     //delete detector;
@@ -144,7 +152,7 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 	LOG(Info, "-- Min dist : ", min_dist);
 	
 	if (min_dist < 0.02) {
-		min_dist = 0.02;
+		min_dist = 4.02;	//Only for ORB
 	}
 	
 	// Select only good matches

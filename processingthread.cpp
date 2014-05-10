@@ -6,6 +6,7 @@
 #include "logging.h"
 
 #include "cameramatrixextraction.h"
+#include "bundleadjustment.h"
 
 #include <QDebug>
 #include <QTextStream>
@@ -52,8 +53,11 @@ void ProcessingThread::addFrameToProcessingQueue(QImage frame)
 void ProcessingThread::run()
 {
     // Process until stop() called
+	int imageCnt = -1;
+
     while (!stopped)
     {
+		imageCnt++;
         if (!queue.isEmpty())
         {
             currentFrame = queue.dequeue();
@@ -65,6 +69,8 @@ void ProcessingThread::run()
 
 			// TODO this will be removed in future, now for visualization
 			sceneModel->frames.push_back(cv::Mat(&iplImage));
+			sceneModel->framesRGB.push_back(cv::Mat_<cv::Vec3b>());
+			//cv::Mat(&iplImage).copyTo(sceneModel->framesRGB[imageCnt]); // TODO - fails
 
             // Convert image to grayscale
             IplImage * imageGrayScale = 0;
@@ -180,13 +186,27 @@ void ProcessingThread::run()
 									sceneModel->getKeypoints(idx1), sceneModel->getKeypoints(idx2), 
 									keypoints1Refined, keypoints2Refined, P0, P1, goodMatches, reconstructedPts);
 				
+				// Add found matrices to pose matrices - TODO: move
+				sceneModel->poseMats[0] = P0;
+				sceneModel->poseMats[1] = P1;
+
+				// Adjust bundle for everything so far before display
+				cv::Mat temporaryCameraMatrix = K;
+				BundleAdjustment BA;
+				BA.adjustBundle(reconstructedPts,temporaryCameraMatrix,sceneModel->getKeypoints(),sceneModel->poseMats);
+				//K = cam_matrix;
+				//Kinv = K.inv();
+
 				// Pass reconstructed points to 3D display		
 				std::vector<cv::Point3d> points;
 				// TODO unnecessary copying
 				for (int i = 0; i < reconstructedPts.size(); ++i) {
 					points.push_back(reconstructedPts[i].pt);
 				}
-				update(points);
+
+				std::vector<cv::Vec3b> pointsRGB;
+				// getRGBForPointCloud(reconstructedPts, pointsRGB); TODO
+				update(points, pointsRGB);
 
 				// TODO
 				// We have the reconstructed points from 2 views here
@@ -233,4 +253,37 @@ void ProcessingThread::run()
             msleep(THREAD_SLEEP_MS);
         }
     }
+}
+
+void ProcessingThread::getRGBForPointCloud(
+	const std::vector<struct CloudPoint>& pcloud,
+	std::vector<cv::Vec3b>& RGBCloud) 
+{
+/*	RGBCloud.resize(pcloud.size());
+
+	// For every point
+	for (unsigned int i=0; i<pcloud.size(); i++) {
+		
+		// Find all views in which the point was seen
+		unsigned int good_view = 0;
+		std::vector<cv::Vec3b> point_colors;
+		for(; good_view < sceneModel->frames.size(); good_view++) {
+			if(pcloud[i].imgpt_for_img[good_view] != -1) {
+				int pt_idx = pcloud[i].imgpt_for_img[good_view];
+				if(pt_idx >= sceneModel->getKeypoints(good_view).size()) {
+					std::cerr << "BUG: point id:" << pt_idx << " should not exist for img #" << good_view << " which has only " << sceneModel->getKeypoints(good_view).size()  ;
+					continue;
+				}
+				cv::Point _pt = sceneModel->getKeypoints(good_view)[pt_idx].pt;
+				assert(good_view < sceneModel->frames.size() && _pt.x < sceneModel->framesRGB[good_view].cols && _pt.y < sceneModel->framesRGB[good_view].rows);
+				
+				point_colors.push_back(sceneModel->framesRGB[good_view].at<cv::Vec3b>(_pt));
+			}
+		}
+
+		cv::Scalar res_color = cv::mean(point_colors);
+		RGBCloud[i] = (cv::Vec3b(res_color[0],res_color[1],res_color[2])); //bgr2rgb
+		if(good_view == sceneModel->frames.size()) //nothing found.. put red dot
+			RGBCloud.push_back(cv::Vec3b(255,0,0));
+	}*/
 }

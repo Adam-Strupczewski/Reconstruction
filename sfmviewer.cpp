@@ -4,48 +4,29 @@
 
 using namespace std;
 
-void SFMViewer::update(std::vector<cv::Point3d> points){
+void SFMViewer::update(std::vector<cv::Point3d> points, std::vector<cv::Vec3b> pointsRGB){
 	this->points = points;
+	this->pointsRGB = pointsRGB;
 }
 
-// Draws a spiral
 void SFMViewer::draw()
 {
-	//std::vector<cv::Point3d> points;
-	//for (int i=0; i<20; ++i){
-	//	points.push_back(cv::Point3d(0,0,i-10));
-	//}
 
 	glPushAttrib(GL_ENABLE_BIT);
 	glDisable(GL_LIGHTING);
 	glPointSize(2);
 	glBegin(GL_POINTS);
 	for (int i = 0; i < points.size(); ++i) {
+
+		// Draw color points!
+		// Draw cameras!
+
+
         glColor3ub(255-10*i,100,10*i);
 		glVertex3dv(&(points[i].x));
 	}
 	glEnd();
 
-	//const float nbSteps = 200.0;
-
-	//glBegin(GL_QUAD_STRIP);
-	//for (int i=0; i<nbSteps; ++i)
-	//{
-	//	const float ratio = i/nbSteps;
-	//	const float angle = 21.0*ratio;
-	//	const float c = cos(angle);
-	//	const float s = sin(angle);
-	//	const float r1 = 1.0 - 0.8f*ratio;
-	//	const float r2 = 0.8f - 0.8f*ratio;
-	//	const float alt = ratio - 0.5f;
-	//	const float nor = 0.5f;
-	//	const float up = sqrt(1.0-nor*nor);
-	//	glColor3f(1.0-ratio, 0.2f , ratio);
-	//	glNormal3f(nor*c, up, nor*s);
-	//	glVertex3f(r1*c, alt, r1*s);
-	//	glVertex3f(r2*c, alt+0.05f, r2*s);
-	//}
-	//glEnd();
 }
 
 void SFMViewer::init()

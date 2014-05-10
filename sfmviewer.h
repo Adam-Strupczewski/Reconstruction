@@ -15,7 +15,7 @@ public:
 
 	}
 
-	virtual void update(std::vector<cv::Point3d> points);
+	virtual void update(std::vector<cv::Point3d> points, std::vector<cv::Vec3b> pointsRGB);
 
 protected :
 	virtual void draw();
@@ -24,6 +24,7 @@ protected :
 
 private:
 	std::vector<cv::Point3d> points;
+	std::vector<cv::Vec3b> pointsRGB;
 
 };
 

@@ -26,21 +26,26 @@ public:
 	void addMatches(int i, int j, std::vector< cv::DMatch > macthes);
 
 	std::vector<cv::KeyPoint> getKeypoints(int frame);
+	std::vector<std::vector<cv::KeyPoint> > getKeypoints(){
+		return keypointDatabase;
+	}
 	cv::Mat getDescriptors(int frame);
 	int getFrameCount();
 
 	// TEMPORARY FOR VISUALIZATION
 	std::vector<cv::Mat> frames;
+	std::vector<cv::Mat_<cv::Vec3b> > framesRGB;
 
+	std::map<int,cv::Matx34d> poseMats;
 private:
 	// Vector of vectors with keypoints for each image
-	std::vector<std::vector<cv::KeyPoint>> keypointDatabase;
+	std::vector<std::vector<cv::KeyPoint> > keypointDatabase;
 
 	// Vector of Mts with descriptors for each image
 	std::vector<cv::Mat> descriptorDatabase;
 
 	// Vector with matches assigned to image pairs
-	std::map<std::pair<int, int>, std::vector< cv::DMatch >> matchMap;
+	std::map<std::pair<int, int>, std::vector< cv::DMatch > > matchMap;
 
 	// Current scene model - all computed 3D scene feature points
 	std::vector<Point3Df> allPoints;

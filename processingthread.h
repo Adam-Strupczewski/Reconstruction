@@ -49,10 +49,14 @@ public:
         listener = ul;
     }
 private:
-    void update(std::vector<cv::Point3d> points)
+    void update(std::vector<cv::Point3d> points, 
+				std::vector<cv::Vec3b> pointsRGB)
     {
-		listener->update(points);
+		listener->update(points, pointsRGB);
     }
+
+	void getRGBForPointCloud(const std::vector<struct CloudPoint>& pcloud,
+							std::vector<cv::Vec3b>& RGBCloud);
 };
 
 #endif // PROCESSINGTHREAD_H

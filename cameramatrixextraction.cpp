@@ -74,9 +74,16 @@ bool findCameraMatrices(const cv::Mat& K,
 		// Once all required conditions are met - the next configurations need not be tried
 		std::vector<CloudPoint> pcloud0,pcloud1; 
 
-		double reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
+ 		double reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 		double reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
 		
+		// TODO add which point is which
+		for (int j = 0; j<pcloud0.size(); j++) {
+			pcloud0[j].imgpt_for_img.resize(2);
+			pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
+			pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
+		}
+
 		std::vector<uchar> tmp_status;
 		if (!testTriangulation(pcloud0,P1,tmp_status) || !testTriangulation(pcloud1,P0,tmp_status) || reproj_error1 > 100.0 || reproj_error2 > 100.0) {
 			P1 = cv::Matx34d(R1(0,0),	R1(0,1),	R1(0,2),	t2(0),
@@ -89,7 +96,13 @@ bool findCameraMatrices(const cv::Mat& K,
 			pcloud0.clear(); pcloud1.clear();
 			reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 			reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
-				
+			// TODO add which point is which
+			for (int j = 0; j<pcloud0.size(); j++) {
+				pcloud0[j].imgpt_for_img.resize(2);
+				pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
+				pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
+			}
+
 			if (!testTriangulation(pcloud0,P1,tmp_status) || !testTriangulation(pcloud1,P0,tmp_status) || reproj_error1 > 100.0 || reproj_error2 > 100.0) {
 				if (!checkCoherentRotation(R2)) {
 					LOG(Debug, "Resulting rotation is not coherent");
@@ -106,7 +119,13 @@ bool findCameraMatrices(const cv::Mat& K,
 				pcloud0.clear(); pcloud1.clear();
 				reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 				reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
-					
+				// TODO add which point is which
+				for (int j = 0; j<pcloud0.size(); j++) {
+					pcloud0[j].imgpt_for_img.resize(2);
+					pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
+					pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
+				}
+
 				if (!testTriangulation(pcloud0,P1,tmp_status) || !testTriangulation(pcloud1,P0,tmp_status) || reproj_error1 > 100.0 || reproj_error2 > 100.0) {
 					P1 = cv::Matx34d(R2(0,0),	R2(0,1),	R2(0,2),	t2(0),
 									R2(1,0),	R2(1,1),	R2(1,2),	t2(1),
@@ -117,7 +136,13 @@ bool findCameraMatrices(const cv::Mat& K,
 					pcloud0.clear(); pcloud1.clear();
 					reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 					reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
-						
+					// TODO add which point is which
+					for (int j = 0; j<pcloud0.size(); j++) {
+						pcloud0[j].imgpt_for_img.resize(2);
+						pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
+						pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
+					}
+
 					if (!testTriangulation(pcloud0,P1,tmp_status) || !testTriangulation(pcloud1,P0,tmp_status) || reproj_error1 > 100.0 || reproj_error2 > 100.0) {
 						LOG(Debug, "Triangulation has failed");
 						return false;
@@ -169,7 +194,7 @@ cv::Mat findFundamentalMatrix(const std::vector<cv::KeyPoint>& keypoints1,
 		double minVal,maxVal;
 		cv::minMaxIdx(pts1,&minVal,&maxVal);
 		//F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 0.006 * maxVal, 0.99, status);	//threshold from [Snavely07 4.1]
-		F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 10, 0.999, status);				// AS
+		F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 0.002 * maxVal, 0.9999, status);				// AS
 	}
 	
 	std::vector<cv::DMatch> new_matches;
