@@ -3,6 +3,8 @@
 #include "featurehandler.h"
 #include "logging.h"
 
+#include "cameramatrixextraction.h"
+
 #include <opencv2/opencv.hpp>
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/core/core.hpp>
@@ -90,7 +92,7 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 	std::vector<cv::KeyPoint> &keypoints2, cv::Mat &descriptors2, std::vector< cv::DMatch > &matchesOut)
 {
 	double time = cv::getTickCount();
-	LOG(Debug, "Calculating matches...");
+	LOG(Debug, "Calculating matches for images ", idx1, " and ", idx2);
 			
 	LOG(Info, "Image 1 number of keypoints: ", (int)keypoints1.size());
 	LOG(Info, "Image 1 number of descriptors: ", (int)descriptors1.size().height);
@@ -98,7 +100,7 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 	LOG(Info, "Image 2 number of descriptors: ", (int)descriptors2.size().height);
 
 	if (descriptors1.empty() || descriptors2.empty()){
-		LOG(Warn, "No descriptors for the previous image");
+		LOG(Warn, "No descriptors for image ", idx1, " or ", idx2);
 		return false;
 	}
 
@@ -151,8 +153,8 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 	LOG(Info, "-- Max dist : ", max_dist);
 	LOG(Info, "-- Min dist : ", min_dist);
 	
-	if (min_dist < 0.02) {
-		min_dist = 4.02;	//Only for ORB
+	if (min_dist < 4.00) {
+		min_dist = 4.00;	//Only for ORB
 	}
 	
 	// Select only good matches
@@ -181,27 +183,14 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 		}
 	}
 
-	LOG(Info, "Number of matches after refinement: ", (int)goodMatches.size());
+	LOG(Info, "Number of matches after basic refinement: ", (int)goodMatches.size());
 
-	// Optional - filter matches using F matrix with RANSAC
-	// Currently this is being done later...
-	/*
-    std::vector<uchar> inliers(points1.size(),0);
-    cv::Mat fundemental= cv::findFundamentalMat(cv::Mat(points1),cv::Mat(points2),inliers,CV_FM_RANSAC,distance,confidence); // confidence probability
-    // extract the surviving (inliers) matches
-    std::vector<uchar>::const_iterator
-    itIn= inliers.begin();
-    std::vector<cv::DMatch>::const_iterator
-    itM= matches.begin();
-    // for all matches
-    for ( ;itIn!= inliers.end(); ++itIn, ++itM)
-    {
-        if (*itIn)
-        { // it is a valid match
-            goodMatches.push_back(*itM);
-        }
-    }
-	*/
+	// Filter matches using F matrix with RANSAC - This is currently done in function findCameraMatrices when finding F.
+	// TODO - Doing it also here causes E matrix failure. Why ?????
+	/*std::vector<cv::KeyPoint> keypoints1Refined;
+	std::vector<cv::KeyPoint> keypoints2Refined;
+	findFundamentalMatrix(keypoints1, keypoints2, keypoints1Refined, keypoints2Refined, goodMatches);
+	LOG(Info, "Number of matches after F matrix refinement: ", (int)goodMatches.size());*/
 
 	// Check if there are sufficient good matches
 	if (goodMatches.size() < 8){
@@ -214,4 +203,13 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 	time = ((double)cv::getTickCount() - time)/cv::getTickFrequency();
 	LOG(Debug, "Finished finding matches in time: ", time);
 	return true;
+}
+
+std::vector<cv::DMatch> FeatureHandler::flipMatches(const std::vector<cv::DMatch>& matches) {
+	std::vector<cv::DMatch> flip;
+	for(int i=0;i<matches.size();i++) {
+		flip.push_back(matches[i]);
+		std::swap(flip.back().queryIdx,flip.back().trainIdx);
+	}
+	return flip;
 }

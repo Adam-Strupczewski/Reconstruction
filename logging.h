@@ -14,6 +14,8 @@ void LOG(LogLevel level, const char* message, int i);
 void LOG(LogLevel level, const char* message, float f);
 void LOG(LogLevel level, const char* message, double d);
 
+void LOG(LogLevel level, const char* message1, int i1, const char* message2, int i2);
+
 void LOG(LogLevel level, const cv::Mat &m);
 
 #endif // LOGGING_H

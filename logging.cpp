@@ -32,6 +32,13 @@ void LOG(LogLevel level, const char* message, double d)
     }
 }
 
+void LOG(LogLevel level, const char* message1, int i1, const char* message2, int i2)
+{
+    if (level>=LOG_LEVEL){
+        qDebug() << message1 << i1 << message2 << i2;
+    }
+}
+
 void LOG(LogLevel level, const cv::Mat &m)
 {
     if (level>=LOG_LEVEL){

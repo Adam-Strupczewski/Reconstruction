@@ -69,12 +69,12 @@ void ProcessingThread::run()
 
 			// TODO this will be removed in future, now for visualization
 			sceneModel->frames.push_back(cv::Mat(&iplImage));
-			// TODO this is necessary for getting color for 3D reconstruction
+			// TODO this is necessary for getting color for 3D reconstruction, should be made more efficient
 			sceneModel->framesRGB.push_back(cv::Mat_<cv::Vec3b>());
 			cv::Mat cvMat = cvtQImage2CvMat(currentFrame);
 			cvMat.copyTo(sceneModel->framesRGB[imageCnt]);
 
-            // Convert image to grayscale
+            // Convert image to grayscale TODO inefficient
             IplImage * imageGrayScale = 0;
             if(iplImage.nChannels != 1 || iplImage.depth != IPL_DEPTH_8U)
             {
@@ -83,7 +83,7 @@ void ProcessingThread::run()
                 cvCvtColor(&iplImage, imageGrayScale, CV_BGR2GRAY);
             }
 
-			// Create Mat for further processing
+			// Create Mat for further processing TODO inefficient
 			LOG(Debug, "Creating mat from new image...");
             cv::Mat img;
             if(imageGrayScale)
@@ -120,106 +120,93 @@ void ProcessingThread::run()
 			//cv::imshow("Test.jpg", imgWithKeypoints);
 			//cv::waitKey(0);
 
-			// Here we want to process the already added keypoints and create / refine a stereo model
-			if (sceneModel->getFrameCount()>1){
-
-				int idx1 = sceneModel->getFrameCount()-2;
-				int idx2 = sceneModel->getFrameCount()-1;
-				/* 
-				For each incoming frame, once there are at least two frames stored
-				create a 3D stereo models from the last two frames. This will be changed
-				to a single stereo initialisation, online model expansion and periodic 
-				bundle adjustment refinements.
-				*/
+			// Now the incoming image keypoints need to be matched to all existing images
+			// TODO - maybe not to all? Snavely takes initial images according to matches & homography inliers...
+			int idx2 = imageCnt;
+			for (int idx1=0; idx1<idx2; idx1++){
 
 				std::vector< cv::DMatch > goodMatches;
-				
-				// Get keypoints & descriptors
+
+				// Get keypoints & descriptors - TODO get rid of copying
 				std::vector<cv::KeyPoint> keypoints1 = sceneModel->getKeypoints(idx1);
 				cv::Mat descriptors1 = sceneModel->getDescriptors(idx1);
 				std::vector<cv::KeyPoint> keypoints2 = sceneModel->getKeypoints(idx2);
 				cv::Mat descriptors2 = sceneModel->getDescriptors(idx2);
 				featureHandler->findMatches(idx1, idx2, keypoints1, descriptors1, keypoints2, descriptors2, goodMatches);
 
-				// Store good matches in model
+				std::vector<cv::DMatch> goodMatchesFlipped = featureHandler->flipMatches(goodMatches);
+
+				// Store good matches in model - good matches are already refined with F matrix
 				sceneModel->addMatches(idx1,idx2,goodMatches);
-				LOG(Debug, "Stored matches");
+				sceneModel->addMatches(idx2,idx1,goodMatchesFlipped);
+			}
+			LOG(Debug, "Stored all matches of the new image to previous images");
+
+			// If the current image is the second image - initialize stereo model
+			if (imageCnt+1 == 2){
 		
 #ifdef __DEBUG__DISPLAY__
 				cv::Mat img_matches;
-				cv::drawMatches(sceneModel->frames[idx1], sceneModel->getKeypoints(idx1), 
-								sceneModel->frames[idx2], sceneModel->getKeypoints(idx2),
-								goodMatches, img_matches);
+				cv::drawMatches(sceneModel->frames[0], sceneModel->getKeypoints(0), 
+								sceneModel->frames[1], sceneModel->getKeypoints(1),
+								sceneModel->getMatches(0,1), img_matches);
 				imshow( "Good Matches", img_matches );
 				cv::waitKey(0);
 #endif
 
-				// Set camera parameters - necessary for reconstruction
+				// Set initial camera parameters - necessary for reconstruction
 				cv::Matx34d P0,P1;
-				cv::Mat K;
-				cv::Mat_<double> Kinv;
-				cv::Mat distortion_coeff;
-				std::vector<CloudPoint> reconstructedPts;
 
+				// Set arbitrary parameters - will be refined
 				P0 = cv::Matx34d(1,0,0,0,
 								0,1,0,0,
 								0,0,1,0);
-				P1 = cv::Matx34d(1,0,0,50,
+				P1 = cv::Matx34d(1,0,0,0,
 								0,1,0,0,
 								0,0,1,0);
 
-				K = cv::Mat::eye(3, 3, CV_64F);
-				K.at<double>(0,0) = 640;
-				K.at<double>(1,1) = 640;
-				K.at<double>(0,2) = 320;
-				K.at<double>(1,2) = 240;
+				// Attempt to find baseline traingulation
+				LOG(Debug, "Trying to find baseline triangulation...");
 
-				LOG(Debug, "Camera internal matrix: ");
-				LOG(Debug, K);
-
-				distortion_coeff = cv::Mat::zeros(8, 1, CV_64F);
-				invert(K, Kinv); //get inverse of camera matrix
-
-				// Calculate camera matrices from fundamental matrix
 				std::vector<cv::KeyPoint> keypoints1Refined;
 				std::vector<cv::KeyPoint> keypoints2Refined;
-
-				findCameraMatrices(K, Kinv, distortion_coeff, 
-									sceneModel->getKeypoints(idx1), sceneModel->getKeypoints(idx2), 
-									keypoints1Refined, keypoints2Refined, P0, P1, goodMatches, reconstructedPts);
+				bool b = findCameraMatrices(sceneModel->K, sceneModel->Kinv, sceneModel->distortionCoefficients, 
+									sceneModel->getKeypoints(0), sceneModel->getKeypoints(1), 
+									keypoints1Refined, keypoints2Refined, P0, P1, sceneModel->getMatches(0,1), 
+									sceneModel->reconstructedPts);
 				
+				if (b){
+					LOG (Debug, "Baseline triangulation successful!");
+				}else{
+					LOG (Debug, "Baseline triangulation failed!");
+					exit(0);
+				}
+
 				// Add found matrices to pose matrices - TODO: move
 				sceneModel->poseMats[0] = P0;
 				sceneModel->poseMats[1] = P1;
 
 				// Adjust bundle for everything so far before display
-				cv::Mat temporaryCameraMatrix = K;
+				cv::Mat temporaryCameraMatrix = sceneModel->K;
 				BundleAdjustment BA;
-				BA.adjustBundle(reconstructedPts,temporaryCameraMatrix,sceneModel->getKeypoints(),sceneModel->poseMats);
-				//K = cam_matrix;
-				//Kinv = K.inv();
+				BA.adjustBundle(sceneModel->reconstructedPts,temporaryCameraMatrix,sceneModel->getKeypoints(),sceneModel->poseMats);
 
 				// Pass reconstructed points to 3D display		
 				std::vector<cv::Point3d> points;
 				// TODO unnecessary copying
-				for (int i = 0; i < reconstructedPts.size(); ++i) {
-					points.push_back(reconstructedPts[i].pt);
+				for (int i = 0; i < sceneModel->reconstructedPts.size(); ++i) {
+					points.push_back(sceneModel->reconstructedPts[i].pt);
 				}
 
 				std::vector<cv::Vec3b> pointsRGB;
-				getRGBForPointCloud(reconstructedPts, pointsRGB); //TODO
+				getRGBForPointCloud(sceneModel->reconstructedPts, pointsRGB);
 				update(points, pointsRGB);
-
-				// TODO
-				// We have the reconstructed points from 2 views here
-				// We want to store them and refine them with future images
-				// In the end, we want to add bundle adjustment
 
 #ifdef __DEBUG__DISPLAY__
 				// DEBUG - Drawing matches that survived the fundamental matrix
-				cv::drawMatches(sceneModel->frames[idx1], sceneModel->getKeypoints(idx1), 
-								sceneModel->frames[idx2], sceneModel->getKeypoints(idx2),
-								goodMatches, img_matches, cv::Scalar(0,0,255));
+				cv::drawMatches(sceneModel->frames[0], sceneModel->getKeypoints(0), 
+								sceneModel->frames[1], sceneModel->getKeypoints(1),
+								sceneModel->getMatches(0,1), img_matches, cv::Scalar(0,0,255));
 				imshow( "Good Matches After F Refinement", img_matches );
 				cv::waitKey(0);
 #endif						
@@ -228,6 +215,15 @@ void ProcessingThread::run()
 				LOG(Debug, "Initialized stereo model");
 
 
+			}else if(0/*imageCnt-1 == 2*/){
+				// If this is the 3rd or next image, use it to refine stereo model
+				
+				// TODO - complete
+				// Find correspondences from this image to already reconstructed 3D points
+				// Find pose of camera for new image based on these correspondences
+				// Triangulate current view with all previous views to reconstruct more 3D points
+				// Bundle adjustment
+				
 			}
 		
 			/* 

@@ -31,7 +31,8 @@ bool findCameraMatrices(const cv::Mat& K,
 	cv::Mat_<double> E = K.t() * F * K; //according to HZ (Equation 9.12)
 
 	// Check validity according to http://en.wikipedia.org/wiki/Essential_matrix#Properties_of_the_essential_matrix
-	if(fabsf(determinant(E)) > 1e-07) {
+	//if(fabsf(determinant(E)) > 1e-07) {	// Orig
+	if(fabsf(determinant(E)) > 2e-05) {		// AS
 		LOG(Debug, "Essential matrix does not satisfy internal constraints! Determinant is too large: ", determinant(E));
 		P1 = 0;
 		return false;
@@ -194,12 +195,11 @@ cv::Mat findFundamentalMatrix(const std::vector<cv::KeyPoint>& keypoints1,
 		double minVal,maxVal;
 		cv::minMaxIdx(pts1,&minVal,&maxVal);
 		//F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 0.006 * maxVal, 0.99, status);	//threshold from [Snavely07 4.1]
+		//F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 0.002 * maxVal, 0.9999, status);				// AS
 		F = findFundamentalMat(pts1, pts2, cv::FM_RANSAC, 0.002 * maxVal, 0.9999, status);				// AS
 	}
 	
 	std::vector<cv::DMatch> new_matches;
-	LOG(Info, "Number of points kept by Ransac: ", cv::countNonZero(status));
-
 	for (unsigned int i=0; i<status.size(); i++) {
 		if (status[i]) 
 		{

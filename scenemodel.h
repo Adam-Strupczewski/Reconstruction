@@ -21,6 +21,11 @@ public:
     explicit SceneModel();
     virtual ~SceneModel();
 
+	// Camera parameters
+	cv::Mat K;
+	cv::Mat_<double> Kinv;
+	cv::Mat distortionCoefficients;
+
 	void addNewFramePoints(std::vector<cv::KeyPoint> point);
 	void addNewFrameDescriptors(cv::Mat descriptors);
 	void addMatches(int i, int j, std::vector< cv::DMatch > macthes);
@@ -30,6 +35,11 @@ public:
 		return keypointDatabase;
 	}
 	cv::Mat getDescriptors(int frame);
+	std::map<std::pair<int, int>, std::vector< cv::DMatch > > getMatches(){
+		return matchMap;
+	}
+	std::vector< cv::DMatch > getMatches(int i, int j);
+
 	int getFrameCount();
 
 	// TEMPORARY FOR VISUALIZATION
@@ -37,7 +47,17 @@ public:
 	std::vector<cv::Mat_<cv::Vec3b> > framesRGB;
 
 	std::map<int,cv::Matx34d> poseMats;
-private:
+	//std::map<std::pair<int,int> ,std::vector<cv::DMatch> > matches_matrix;
+
+	// Structure with all the reconstructed 3D points
+	std::vector<CloudPoint> reconstructedPts;
+
+	// Keypoints refined with F matrix
+	//std::vector<std::vector<cv::KeyPoint> > keypointsGood;
+
+private:	// TODO clean-up public / private vars 
+			// Some are public some are private - should be made consistent
+
 	// Vector of vectors with keypoints for each image
 	std::vector<std::vector<cv::KeyPoint> > keypointDatabase;
 
