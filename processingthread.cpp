@@ -57,9 +57,9 @@ void ProcessingThread::run()
 
     while (!stopped)
     {
-		imageCnt++;
         if (!queue.isEmpty())
         {
+			imageCnt++;
             currentFrame = queue.dequeue();
 
             LOG(Debug, "Starting to process new image...");
@@ -69,8 +69,10 @@ void ProcessingThread::run()
 
 			// TODO this will be removed in future, now for visualization
 			sceneModel->frames.push_back(cv::Mat(&iplImage));
+			// TODO this is necessary for getting color for 3D reconstruction
 			sceneModel->framesRGB.push_back(cv::Mat_<cv::Vec3b>());
-			//cv::Mat(&iplImage).copyTo(sceneModel->framesRGB[imageCnt]); // TODO - fails
+			cv::Mat cvMat = cvtQImage2CvMat(currentFrame);
+			cvMat.copyTo(sceneModel->framesRGB[imageCnt]);
 
             // Convert image to grayscale
             IplImage * imageGrayScale = 0;
@@ -205,7 +207,7 @@ void ProcessingThread::run()
 				}
 
 				std::vector<cv::Vec3b> pointsRGB;
-				// getRGBForPointCloud(reconstructedPts, pointsRGB); TODO
+				getRGBForPointCloud(reconstructedPts, pointsRGB); //TODO
 				update(points, pointsRGB);
 
 				// TODO
@@ -259,7 +261,7 @@ void ProcessingThread::getRGBForPointCloud(
 	const std::vector<struct CloudPoint>& pcloud,
 	std::vector<cv::Vec3b>& RGBCloud) 
 {
-/*	RGBCloud.resize(pcloud.size());
+	RGBCloud.resize(pcloud.size());
 
 	// For every point
 	for (unsigned int i=0; i<pcloud.size(); i++) {
@@ -285,5 +287,5 @@ void ProcessingThread::getRGBForPointCloud(
 		RGBCloud[i] = (cv::Vec3b(res_color[0],res_color[1],res_color[2])); //bgr2rgb
 		if(good_view == sceneModel->frames.size()) //nothing found.. put red dot
 			RGBCloud.push_back(cv::Vec3b(255,0,0));
-	}*/
+	}
 }

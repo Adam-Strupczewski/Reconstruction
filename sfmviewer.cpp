@@ -11,22 +11,20 @@ void SFMViewer::update(std::vector<cv::Point3d> points, std::vector<cv::Vec3b> p
 
 void SFMViewer::draw()
 {
-
 	glPushAttrib(GL_ENABLE_BIT);
 	glDisable(GL_LIGHTING);
 	glPointSize(2);
 	glBegin(GL_POINTS);
 	for (int i = 0; i < points.size(); ++i) {
 
-		// Draw color points!
-		// Draw cameras!
-
-
-        glColor3ub(255-10*i,100,10*i);
+		// Draw color points
+		glColor3ub(pointsRGB[i][0],pointsRGB[i][1],pointsRGB[i][2]);
+        //glColor3ub(255-10*i,100,10*i);
 		glVertex3dv(&(points[i].x));
 	}
 	glEnd();
 
+	// TODO Draw cameras!
 }
 
 void SFMViewer::init()
