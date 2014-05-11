@@ -14,7 +14,7 @@ ImageReader::ImageReader()
     //imageBaseName = "R000";
 	//folderPath = "../Reconstruction/images4/";
     //imageBaseName = "kermit00";
-    imageAmount = 2;
+    imageAmount = 3;
 
     currentImage = 0;
 }

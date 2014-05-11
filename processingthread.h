@@ -57,6 +57,23 @@ private:
 
 	void getRGBForPointCloud(const std::vector<struct CloudPoint>& pcloud,
 							std::vector<cv::Vec3b>& RGBCloud);
+
+	void find2D3DCorrespondences(int working_view, 
+								std::vector<cv::Point3f>& ppcloud, 
+								std::vector<cv::Point2f>& imgPoints);
+
+	bool findPoseEstimation(int working_view,
+							cv::Mat_<double>& rvec,
+							cv::Mat_<double>& t,
+							cv::Mat_<double>& R,
+							std::vector<cv::Point3f> ppcloud,
+							std::vector<cv::Point2f> imgPoints); 
+
+	bool triangulatePointsBetweenViews(int workingView, 
+										int olderView,
+										std::vector<struct CloudPoint>& newTriangulated,
+										std::vector<int>& addToCloud,
+										int numViews); 
 };
 
 #endif // PROCESSINGTHREAD_H

@@ -23,7 +23,7 @@ bool findCameraMatrices(const cv::Mat& K,
 	cv::Mat F = findFundamentalMatrix(keypoints1,keypoints2,keypoints1_refined,keypoints2_refined,matches);
 
 	if(matches.size() < 15) { // || ((double)keypoints1.size() / (double)keypoints1_refined.size()) < 0.25
-		LOG(Debug, "Insufficient number of matches after F refinement: ", (int)matches.size());
+		LOG(Warn, "Insufficient number of matches after F refinement: ", (int)matches.size());
 		return false;
 	}
 
@@ -33,7 +33,7 @@ bool findCameraMatrices(const cv::Mat& K,
 	// Check validity according to http://en.wikipedia.org/wiki/Essential_matrix#Properties_of_the_essential_matrix
 	//if(fabsf(determinant(E)) > 1e-07) {	// Orig
 	if(fabsf(determinant(E)) > 2e-05) {		// AS
-		LOG(Debug, "Essential matrix does not satisfy internal constraints! Determinant is too large: ", determinant(E));
+		LOG(Warn, "Essential matrix does not satisfy internal constraints! Determinant is too large: ", determinant(E));
 		P1 = 0;
 		return false;
 	}
@@ -46,7 +46,7 @@ bool findCameraMatrices(const cv::Mat& K,
 	// Using the essential matrix, decompose E to P' , HZ (Result 9.19)
 	{			
 		if (!decomposeEtoRandT(E,R1,R2,t1,t2)){
-			LOG(Debug, "Unable to decompose essential matrix");
+			LOG(Warn, "Unable to decompose essential matrix");
 			return false;
 		}
 
@@ -58,7 +58,7 @@ bool findCameraMatrices(const cv::Mat& K,
 		}
 
 		if (!checkCoherentRotation(R1)) {
-			LOG(Debug, "Resulting rotation is not coherent");
+			LOG(Warn, "Resulting rotation is not coherent");
 			P1 = 0;
 			return false;
 		}
@@ -78,7 +78,7 @@ bool findCameraMatrices(const cv::Mat& K,
  		double reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 		double reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
 		
-		// TODO add which point is which
+		// TODO add which point is which - will fail for more than 2 images
 		for (int j = 0; j<pcloud0.size(); j++) {
 			pcloud0[j].imgpt_for_img.resize(2);
 			pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
@@ -97,7 +97,7 @@ bool findCameraMatrices(const cv::Mat& K,
 			pcloud0.clear(); pcloud1.clear();
 			reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 			reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
-			// TODO add which point is which
+		// TODO add which point is which - will fail for more than 2 images
 			for (int j = 0; j<pcloud0.size(); j++) {
 				pcloud0[j].imgpt_for_img.resize(2);
 				pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
@@ -120,7 +120,7 @@ bool findCameraMatrices(const cv::Mat& K,
 				pcloud0.clear(); pcloud1.clear();
 				reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 				reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
-				// TODO add which point is which
+		// TODO add which point is which - will fail for more than 2 images
 				for (int j = 0; j<pcloud0.size(); j++) {
 					pcloud0[j].imgpt_for_img.resize(2);
 					pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
@@ -137,7 +137,7 @@ bool findCameraMatrices(const cv::Mat& K,
 					pcloud0.clear(); pcloud1.clear();
 					reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 					reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
-					// TODO add which point is which
+		// TODO add which point is which - will fail for more than 2 images
 					for (int j = 0; j<pcloud0.size(); j++) {
 						pcloud0[j].imgpt_for_img.resize(2);
 						pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
@@ -145,7 +145,7 @@ bool findCameraMatrices(const cv::Mat& K,
 					}
 
 					if (!testTriangulation(pcloud0,P1,tmp_status) || !testTriangulation(pcloud1,P0,tmp_status) || reproj_error1 > 100.0 || reproj_error2 > 100.0) {
-						LOG(Debug, "Triangulation has failed");
+						LOG(Warn, "Triangulation has failed");
 						return false;
 					}
 				}				
@@ -237,7 +237,7 @@ bool decomposeEtoRandT(cv::Mat_<double>& E,
 	double singular_values_ratio = fabsf(svd_w.at<double>(0) / svd_w.at<double>(1));
 	if(singular_values_ratio>1.0) singular_values_ratio = 1.0/singular_values_ratio; // flip ratio to keep it [0,1]
 	if (singular_values_ratio < 0.7) {
-		LOG(Debug, "Singular values are too far apart, ratio (min 0.7): ", singular_values_ratio);
+		LOG(Warn, "Singular values are too far apart, ratio (min 0.7): ", singular_values_ratio);
 		return false;
 	}
 

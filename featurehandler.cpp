@@ -53,7 +53,7 @@ bool FeatureHandler::extractKeypoints(cv::Mat &img, std::vector<cv::KeyPoint> &k
     detector->detect(img, keypoints);
     //delete detector;
 	if(keypoints.size()==0){
-		LOG(Debug, "No keypoints found!");
+		LOG(Warn, "No keypoints found!");
 		return false;
 	}
 
@@ -72,14 +72,14 @@ bool FeatureHandler::extractDescriptors(cv::Mat &img, std::vector<cv::KeyPoint> 
 
         if((int)keypoints.size() != descriptors.rows)
         {
-            LOG(Debug, "Error extracting descriptors!");
+            LOG(Warn, "Error extracting descriptors!");
         }else{
 			LOG(Debug, "Descriptors extracted successfully");
 		}
     }
     else
     {
-        LOG(Debug, "WARNING: no features detected");
+        LOG(Warn, "WARNING: no features detected");
 		return false;
     }
 
@@ -194,7 +194,7 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 
 	// Check if there are sufficient good matches
 	if (goodMatches.size() < 8){
-		LOG(Debug, "Insufficient good matches to find homography");
+		LOG(Warn, "Insufficient good matches to find homography");
 		return false;
 	}
 

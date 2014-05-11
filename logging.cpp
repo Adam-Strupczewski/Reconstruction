@@ -32,6 +32,13 @@ void LOG(LogLevel level, const char* message, double d)
     }
 }
 
+void LOG(LogLevel level, const char* message1, int i1, const char* message2)
+{
+    if (level>=LOG_LEVEL){
+        qDebug() << message1 << i1 << message2;
+    }
+}
+
 void LOG(LogLevel level, const char* message1, int i1, const char* message2, int i2)
 {
     if (level>=LOG_LEVEL){
@@ -53,12 +60,22 @@ void LOG(LogLevel level, const cv::Mat &m)
 				debug << m.at<double>(i,j) << " ";
 			}
 		}
+    }
+}
 
-		//cv::MatConstIterator_<double> _it = m.begin<double>();
-		//for(;_it!=m.end<double>(); _it++){
-		//	qDebug() << *_it;
-		//}
+void LOG(LogLevel level, const cv::Mat_<double> &m)
+{
+    if (level>=LOG_LEVEL){
 
-        //std::cout << m;
+		int rows = m.rows;
+		int cols = m.cols;
+
+		// QDebug inserts new line when it is destroyed
+		for(int i=0; i<rows; i++){
+			QDebug debug = qDebug();
+			for(int j=0; j<cols; j++){
+				debug << m.at<double>(i,j) << " ";
+			}
+		}
     }
 }

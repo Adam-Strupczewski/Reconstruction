@@ -55,6 +55,10 @@ public:
 	// Keypoints refined with F matrix
 	//std::vector<std::vector<cv::KeyPoint> > keypointsGood;
 
+	// For multiview reconstruction
+	std::set<int> doneViews;
+	std::set<int> goodViews;
+
 private:	// TODO clean-up public / private vars 
 			// Some are public some are private - should be made consistent
 
