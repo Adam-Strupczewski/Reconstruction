@@ -235,6 +235,14 @@ void ProcessingThread::run()
 			}else if(imageCnt > 2){
 				// If this is the 3rd or next image, use it to refine stereo model
 
+				// To avoid later problems, the range of view indicies for 3d-2d point mapping
+				// Needs to be extended for every reconstructed point so far.
+				for (int i = 0; i < sceneModel->reconstructedPts.size(); ++i) {
+					// Add -1 = means that new view is not yet associated to the current 3d points
+					// The binding will be created in triangulatePointsBetweenViews()
+					sceneModel->reconstructedPts[i].imgpt_for_img.push_back(-1);
+				}
+
 				// Find correspondences from this image to already reconstructed 3D points
 				// We don't need to find image with highest correspondences [Snavely07 4.2], 
 				// as we are processing images consecutively as they appear
@@ -267,7 +275,7 @@ void ProcessingThread::run()
 			
 					std::vector<CloudPoint> newTriangulated;
 					std::vector<int> addToCloud;
-					bool goodTriangulation = triangulatePointsBetweenViews(imageCnt-1,view,newTriangulated,addToCloud,imageCnt-1);
+					bool goodTriangulation = triangulatePointsBetweenViews(imageCnt-1,view,newTriangulated,addToCloud,imageCnt);
 					if(!goodTriangulation){
 						LOG(Warn, "Triangulating current view with view ", view, " has failed! Continuing.");
 						continue;
