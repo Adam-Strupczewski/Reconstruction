@@ -6,6 +6,8 @@
 using namespace cv; 
 using namespace std;
 
+#define HAVE_SSBA
+
 #ifndef HAVE_SSBA
 #include <opencv2/contrib/contrib.hpp>
 #endif
@@ -13,15 +15,15 @@ using namespace std;
 #ifdef HAVE_SSBA
 #define V3DLIB_ENABLE_SUITESPARSE
 
-#include "../3rdparty/SSBA-3.0/Math/v3d_linear.h"
-#include "../3rdparty/SSBA-3.0/Base/v3d_vrmlio.h"
-#include "../3rdparty/SSBA-3.0/Geometry/v3d_metricbundle.h"
+#include "Math/v3d_linear.h"
+#include "Base/v3d_vrmlio.h"
+#include "Geometry/v3d_metricbundle.h"
 
 using namespace V3D;
 
 namespace
 {
-	
+	// TODO Incorrect calculation of error - to be substituted
 	inline void
 	showErrorStatistics(double const f0,
 						StdDistortionFunction const& distortion,
@@ -43,7 +45,8 @@ namespace
 			double reprojectionError = norm_L2(f0 * (p - measurements[k]));
 			meanReprojectionError += reprojectionError;			
 		}
-		qDebug() << "mean reprojection error (in pixels): " << meanReprojectionError/K << endl;
+		LOG(Info, "Mean reprojection error (in pixels): ", meanReprojectionError/K);
+
 	}
 } // end namespace <>
 
@@ -79,7 +82,6 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 	/*	Use SSBA-3.0 for sparse bundle adjustment									*/
 	/********************************************************************************/
 	
-	
 	StdDistortionFunction distortion;
 	
 	//conver camera intrinsics to BA datastructs
@@ -91,9 +93,12 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 	KMat[0][2] = cam_matrix.at<double>(0,2); //ppx
 	KMat[1][2] = cam_matrix.at<double>(1,2); //ppy
 	
+	//LOG(Info, "Intrinsic matrix before bundle = ");
+	//LOG(Info, cv::Mat(KMat));
+
 	double const f0 = KMat[0][0];
-	qDebug() << "intrinsic before bundle = "; displayMatrix(KMat);
 	Matrix3x3d Knorm = KMat;
+
 	// Normalize the intrinsic to have unit focal length.
 	scaleMatrixIP(1.0/f0, Knorm);
 	Knorm[2][2] = 1.0;
@@ -112,7 +117,7 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 		pointIdFwdMap[j] = pointId;
 		pointIdBwdMap.insert(make_pair(pointId, j));
 	}
-	qDebug() << "Read the 3D points." << endl;
+	LOG(Debug, "Converted 3D points to SSBA structures");
 	
 	vector<int> camIdFwdMap(N,-1);
 	map<int, int> camIdBwdMap;
@@ -138,7 +143,7 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 		cams[i].setRotation(R);
 		cams[i].setTranslation(T);
 	}
-	qDebug() << "Read the cameras." << endl;
+	LOG(Debug, "Converted cameras to SSBA structures");
 	
 	vector<Vector2d > measurements;
 	vector<int> correspondingView;
@@ -176,7 +181,7 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 	
 	K = measurements.size();
 	
-	qDebug() << "Read " << K << " valid 2D measurements." << endl;
+	LOG(Debug, "Read ", K, " valid 2D measurements.");
 	
 	showErrorStatistics(f0, distortion, cams, Xs, measurements, correspondingView, correspondingPoint);
 
@@ -184,7 +189,7 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 	double const inlierThreshold = 2.0 / fabs(f0);
 	
 	Matrix3x3d K0 = cams[0].getIntrinsic();
-	qDebug() << "K0 = "; displayMatrix(K0);
+	//qDebug() << "K0 = "; displayMatrix(K0);
 
 	bool good_adjustment = false;
 	{
@@ -198,19 +203,20 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 		opt.maxIterations = 50;
 		opt.minimize();
 		
-		qDebug() << "optimizer status = " << opt.status << endl;
+		LOG(Debug, "SSBA Optimizer status (should be 2) = ",  opt.status);
 		
 		good_adjustment = (opt.status != 2);
 	}
 	
-	qDebug() << "refined K = "; displayMatrix(K0);
+	//qDebug() << "refined K = "; displayMatrix(K0);
 	
 	for (int i = 0; i < N; ++i) cams[i].setIntrinsic(K0);
 	
 	Matrix3x3d Knew = K0;
 	scaleMatrixIP(f0, Knew);
 	Knew[2][2] = 1.0;
-	qDebug() << "Knew = "; displayMatrix(Knew);
+
+	//qDebug() << "Knew = "; displayMatrix(Knew);
 	
 	showErrorStatistics(f0, distortion, cams, Xs, measurements, correspondingView, correspondingPoint);
 	
@@ -252,8 +258,7 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 			Pmats[i] = P;
 		}
 		
-
-		//TODO: extract camera intrinsics
+		//TODO: extract camera intrinsics - no need if intrinsics are known
 		cam_matrix.at<double>(0,0) = Knew[0][0];
 		cam_matrix.at<double>(0,1) = Knew[0][1];
 		cam_matrix.at<double>(0,2) = Knew[0][2];

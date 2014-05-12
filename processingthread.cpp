@@ -201,10 +201,9 @@ void ProcessingThread::run()
 				for (int i = 0; i < sceneModel->reconstructedPts.size(); ++i) {
 					points.push_back(sceneModel->reconstructedPts[i].pt);
 				}
-
 				std::vector<cv::Vec3b> pointsRGB;
 				getRGBForPointCloud(sceneModel->reconstructedPts, pointsRGB);
-				update(points, pointsRGB);
+				update(points, pointsRGB,sceneModel->getCameras());
 
 #ifdef __DEBUG__DISPLAY__
 				// DEBUG - Drawing matches that survived the fundamental matrix
@@ -294,6 +293,16 @@ void ProcessingThread::run()
 				cv::Mat temporaryCameraMatrix = sceneModel->K;
 				BundleAdjustment BA;
 				BA.adjustBundle(sceneModel->reconstructedPts,temporaryCameraMatrix,sceneModel->getKeypoints(),sceneModel->poseMats);
+			
+				// Pass reconstructed points to 3D display		
+				std::vector<cv::Point3d> points;
+				// TODO unnecessary copying
+				for (int i = 0; i < sceneModel->reconstructedPts.size(); ++i) {
+					points.push_back(sceneModel->reconstructedPts[i].pt);
+				}
+				std::vector<cv::Vec3b> pointsRGB;
+				getRGBForPointCloud(sceneModel->reconstructedPts, pointsRGB);
+				update(points, pointsRGB,sceneModel->getCameras());
 			}
 		
 			/* 

@@ -6,7 +6,9 @@
 class SfMUpdateListener
 {
 public:
-	virtual void update(std::vector<cv::Point3d> points, std::vector<cv::Vec3b> pointsRGB) = 0;
+	virtual void update(std::vector<cv::Point3d> points, 
+						std::vector<cv::Vec3b> pointsRGB,
+						std::vector<cv::Matx34d> cameras) = 0;
 };
 
 #endif

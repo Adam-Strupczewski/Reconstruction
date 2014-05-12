@@ -50,9 +50,10 @@ public:
     }
 private:
     void update(std::vector<cv::Point3d> points, 
-				std::vector<cv::Vec3b> pointsRGB)
+				std::vector<cv::Vec3b> pointsRGB,
+				std::vector<cv::Matx34d> cameras)
     {
-		listener->update(points, pointsRGB);
+		listener->update(points, pointsRGB, cameras);
     }
 
 	void getRGBForPointCloud(const std::vector<struct CloudPoint>& pcloud,

@@ -4,13 +4,57 @@
 
 using namespace std;
 
-void SFMViewer::update(std::vector<cv::Point3d> points, std::vector<cv::Vec3b> pointsRGB){
+void SFMViewer::update(std::vector<cv::Point3d> points, 
+						std::vector<cv::Vec3b> pointsRGB,
+						std::vector<cv::Matx34d> cameras){
 	this->points = points;
 	this->pointsRGB = pointsRGB;
+	this->cameras = cameras;
+
+	// TODO Verify below code
+
+	// Get the scale of the result cloud using PCA
+	{
+		cv::Mat_<double> cldm(points.size(), 3);
+		for (unsigned int i = 0; i < points.size(); i++) {
+			cldm.row(i)(0) = points[i].x;
+			cldm.row(i)(1) = points[i].y;
+			cldm.row(i)(2) = points[i].z;
+		}
+		cv::Mat_<double> mean;
+		cv::PCA pca(cldm, mean, CV_PCA_DATA_AS_ROW);
+		scaleCamerasDown = 1.0 / (3.0 * sqrt(pca.eigenvalues.at<double> (0)));
+	}
+
+	// Compute transformation to place cameras in world
+	cameraTransforms.resize(cameras.size());
+	Eigen::Vector3d c_sum(0,0,0);
+	for (int i = 0; i < cameras.size(); ++i) {
+		Eigen::Matrix<double, 3, 4> P = Eigen::Map<Eigen::Matrix<double, 3, 4,
+				Eigen::RowMajor> >(cameras[i].val);
+		Eigen::Matrix3d R = P.block(0, 0, 3, 3);
+		Eigen::Vector3d t = P.block(0, 3, 3, 1);
+		Eigen::Vector3d c = -R.transpose() * t;
+		c_sum += c;
+		cameraTransforms[i] =
+				Eigen::Translation<double, 3>(c) *
+				Eigen::Quaterniond(R) *
+				Eigen::UniformScaling<double>(scaleCamerasDown)
+				;
+	}
+
+	globalTransform = Eigen::Translation<double,3>(-c_sum / (double)(cameras.size()));
 }
 
 void SFMViewer::draw()
 {
+	// TODO Sort out scale
+
+	glPushMatrix();
+	//glScaled(vizScale,vizScale,vizScale);
+	glMultMatrixd(globalTransform.data());
+
+	// Draw reconstructed points
 	glPushAttrib(GL_ENABLE_BIT);
 	glDisable(GL_LIGHTING);
 	glPointSize(2);
@@ -19,12 +63,32 @@ void SFMViewer::draw()
 
 		// Draw color points
 		glColor3ub(pointsRGB[i][0],pointsRGB[i][1],pointsRGB[i][2]);
-        //glColor3ub(255-10*i,100,10*i);
 		glVertex3dv(&(points[i].x));
 	}
 	glEnd();
 
-	// TODO Draw cameras!
+	//glScaled(scaleCamerasDown,scaleCamerasDown,scaleCamerasDown);
+
+	// Draw cameras
+	glEnable(GL_RESCALE_NORMAL);
+	glEnable(GL_LIGHTING);
+	for (int i = 0; i < cameraTransforms.size(); ++i) {
+
+		glPushMatrix();
+		glMultMatrixd(cameraTransforms[i].data());
+
+	    glColor4f(1, 0, 0, 1);
+	    QGLViewer::drawArrow(qglviewer::Vec(0,0,0), qglviewer::Vec(3,0,0));
+	    glColor4f(0, 1, 0, 1);
+	    QGLViewer::drawArrow(qglviewer::Vec(0,0,0), qglviewer::Vec(0,3,0));
+	    glColor4f(0, 0, 1, 1);
+	    QGLViewer::drawArrow(qglviewer::Vec(0,0,0), qglviewer::Vec(0,0,3));
+
+	    glPopMatrix();
+	}
+
+	glPopAttrib();
+	glPopMatrix();
 }
 
 void SFMViewer::init()
@@ -34,7 +98,7 @@ void SFMViewer::init()
 
 	setFPSIsDisplayed();
 
-	int bound = 20;
+	int bound = 50;
 	setSceneBoundingBox(qglviewer::Vec(-bound,-bound,-bound), qglviewer::Vec(bound,bound,bound));
 
 	showEntireScene();

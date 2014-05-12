@@ -40,6 +40,15 @@ public:
 	}
 	std::vector< cv::DMatch > getMatches(int i, int j);
 
+	std::vector<cv::Matx34d> getCameras() { 
+		// Need to copy map to vector
+		std::vector<cv::Matx34d> v; 
+		for(std::map<int ,cv::Matx34d>::const_iterator it = poseMats.begin(); it != poseMats.end(); ++it ) {
+			v.push_back( it->second );
+		}
+		return v;
+    }
+
 	int getFrameCount();
 
 	// TEMPORARY FOR VISUALIZATION
