@@ -183,13 +183,11 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 	
 	LOG(Debug, "Read ", K, " valid 2D measurements.");
 	
-	showErrorStatistics(f0, distortion, cams, Xs, measurements, correspondingView, correspondingPoint);
+//	showErrorStatistics(f0, distortion, cams, Xs, measurements, correspondingView, correspondingPoint);
 
-//	V3D::optimizerVerbosenessLevel = 1;
 	double const inlierThreshold = 2.0 / fabs(f0);
 	
 	Matrix3x3d K0 = cams[0].getIntrinsic();
-	//qDebug() << "K0 = "; displayMatrix(K0);
 
 	bool good_adjustment = false;
 	{
@@ -208,17 +206,13 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 		good_adjustment = (opt.status != 2);
 	}
 	
-	//qDebug() << "refined K = "; displayMatrix(K0);
-	
 	for (int i = 0; i < N; ++i) cams[i].setIntrinsic(K0);
 	
 	Matrix3x3d Knew = K0;
 	scaleMatrixIP(f0, Knew);
 	Knew[2][2] = 1.0;
-
-	//qDebug() << "Knew = "; displayMatrix(Knew);
 	
-	showErrorStatistics(f0, distortion, cams, Xs, measurements, correspondingView, correspondingPoint);
+//	showErrorStatistics(f0, distortion, cams, Xs, measurements, correspondingView, correspondingPoint);
 	
 	if(good_adjustment) { //good adjustment?
 		

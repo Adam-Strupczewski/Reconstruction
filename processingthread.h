@@ -75,6 +75,8 @@ private:
 										std::vector<struct CloudPoint>& newTriangulated,
 										std::vector<int>& addToCloud,
 										int numViews); 
+
+	void updateReprojectionErrors();
 };
 
 #endif // PROCESSINGTHREAD_H

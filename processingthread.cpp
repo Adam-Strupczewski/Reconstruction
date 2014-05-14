@@ -194,6 +194,7 @@ void ProcessingThread::run()
 				cv::Mat temporaryCameraMatrix = sceneModel->K;
 				BundleAdjustment BA;
 				BA.adjustBundle(sceneModel->reconstructedPts,temporaryCameraMatrix,sceneModel->getKeypoints(),sceneModel->poseMats);
+				updateReprojectionErrors();
 
 				// Pass reconstructed points to 3D display		
 				std::vector<cv::Point3d> points;
@@ -293,7 +294,8 @@ void ProcessingThread::run()
 				cv::Mat temporaryCameraMatrix = sceneModel->K;
 				BundleAdjustment BA;
 				BA.adjustBundle(sceneModel->reconstructedPts,temporaryCameraMatrix,sceneModel->getKeypoints(),sceneModel->poseMats);
-			
+				updateReprojectionErrors();
+
 				// Pass reconstructed points to 3D display		
 				std::vector<cv::Point3d> points;
 				// TODO unnecessary copying
@@ -644,4 +646,69 @@ bool ProcessingThread::triangulatePointsBetweenViews(
 	LOG(Info, "Number of points found in other views: ", foundOtherViewsCount, "/", newTriangulated.size());
 	LOG(Debug, "Adding new points from triangulation: ", cv::countNonZero(addToCloud));
 	return true;
+}
+
+void ProcessingThread::updateReprojectionErrors(){
+	// Here we want to calculate the total reprojection error for all reconstructed points so far
+	//============================================================================================
+
+	double averageTotalReprojectionError = 0.0;
+
+	// For every 3D reconstructed point
+	for (int j=0; j<sceneModel->reconstructedPts.size(); j++) {
+
+		// The point in homogenous coordinates
+		cv::Mat_<double> X(4,1);
+		X(0) = sceneModel->reconstructedPts[j].pt.x; 
+		X(1) = sceneModel->reconstructedPts[j].pt.y; 
+		X(2) = sceneModel->reconstructedPts[j].pt.z;
+		X(3) = 1.0;
+
+		// Total reprojection error for all views
+		double averagePointError = 0.0;
+		int appearanceCnt = 0;
+
+		// For all views in which this point is visible
+		for (int i=0; i<sceneModel->getKeypoints().size(); i++)
+		{
+
+			// If point is not visible in this view yet, continue
+			if (sceneModel->reconstructedPts[j].imgpt_for_img[i] < 0){
+				continue;
+			}
+
+			// Projection matrix including internal camera parameters - of current view
+			cv::Mat_<double> iKP = sceneModel->K * cv::Mat(sceneModel->poseMats[i]);
+
+			// Reproject point
+			cv::Mat_<double> iPtImg = iKP * X;	
+
+			// Get 2D point coordinates in the current view
+			cv::Point2f iPt2D(iPtImg(0)/iPtImg(2),iPtImg(1)/iPtImg(2));
+
+			// Get reprojection error
+			double reprjErr = cv::norm(iPt2D - sceneModel->getKeypoints()[i][sceneModel->reconstructedPts[j].imgpt_for_img[i]].pt);
+
+			// Add reprojection error for i-th view to total error
+			averagePointError += reprjErr;
+			appearanceCnt++;
+
+		}
+
+		// Normalize reprojection error for point
+		averagePointError = averagePointError / appearanceCnt;
+
+		// Add point error to total
+		averageTotalReprojectionError += averagePointError;
+
+		// Set point error as its updated error
+		sceneModel->reconstructedPts[j].reprojection_error = averagePointError;
+
+	}
+
+	// Normalize total reprojection error
+	averageTotalReprojectionError = averageTotalReprojectionError / sceneModel->reconstructedPts.size();
+
+	LOG(Debug, "!!! Average total reprojection error: ", averageTotalReprojectionError);
+	//============================================================================================
 }
