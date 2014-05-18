@@ -6,13 +6,13 @@
 
 ImageReader::ImageReader()
 {
-    //folderPath = "../Reconstruction/images/";
+    //folderPath = "images/";
     //imageBaseName = "et00";
-	folderPath = "../Reconstruction/images2/";
+	folderPath = "images2/";
     imageBaseName = "p00";
-	//folderPath = "../Reconstruction/images3/";
+	//folderPath = "images3/";
     //imageBaseName = "R000";
-	//folderPath = "../Reconstruction/images4/";
+	//folderPath = "images4/";
     //imageBaseName = "kermit00";
     imageAmount = 10;
 
