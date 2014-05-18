@@ -4,6 +4,7 @@
 
 #include "qtcvconversion.h"
 #include "logging.h"
+//#include "common.h"
 
 #include "cameramatrixextraction.h"
 #include "bundleadjustment.h"
@@ -16,6 +17,27 @@
 
 static const int QUEUE_MAX_LENGTH = 5;
 static const int THREAD_SLEEP_MS = 25;
+
+/* 
+PTAM:
+1. Find keypoints in each image
+2. Match keypoints from each image to previous keypoints
+3. Initialize 3D scene from stereo pair using 5-point algorithm & select scale
+4. Perform local and global bundle adjustment sequentially - for this save all previous descriptors
+5. Iterate, gradually creating larger map
+*/
+
+/*
+Bundler:
+1. Compute matches for each image pair using ANN (Arya, et al. [1998])
+2. Robustly estimate fundamental matrix for each pair using Ransac
+3. Find matching images
+4. Perform alignment - find homographies, starting from best matches
+5. Update global model, refine using bundle adjustment
+	*/
+
+bool sortByFirst(std::pair<int,std::pair<int,int> > a, std::pair<int,std::pair<int,int> > b) 
+{ return a.first < b.first; }
 
 ProcessingThread::ProcessingThread(QObject *parent) :
     QThread(parent), stopped(false), queueMaxLength(QUEUE_MAX_LENGTH)
@@ -54,7 +76,8 @@ void ProcessingThread::addFrameToProcessingQueue(QImage frame)
 void ProcessingThread::run()
 {
     // Process until stop() called
-	int imageCnt = 0;
+	int imageInitializedCnt = 0;
+	int imageReconstructedCnt = 0;
 
 	// Camera parameters - necessary for reconstruction
 	cv::Matx34d P0,P1;
@@ -64,9 +87,13 @@ void ProcessingThread::run()
 
     while (!stopped)
     {
+
+		// Wait for image reading thread to read all images
+		msleep(2000);
+
         if (!queue.isEmpty())
         {
-			imageCnt++;
+			imageInitializedCnt++;
             currentFrame = queue.dequeue();
 
             LOG(Debug, "Starting to process new image...");
@@ -79,19 +106,19 @@ void ProcessingThread::run()
 			// TODO this is necessary for getting color for 3D reconstruction, should be made more efficient
 			sceneModel->framesRGB.push_back(cv::Mat_<cv::Vec3b>());
 			cv::Mat cvMat = cvtQImage2CvMat(currentFrame);
-			cvMat.copyTo(sceneModel->framesRGB[imageCnt-1]);
+			cvMat.copyTo(sceneModel->framesRGB[imageInitializedCnt-1]);
 
             // Convert image to grayscale TODO inefficient
             IplImage * imageGrayScale = 0;
             if(iplImage.nChannels != 1 || iplImage.depth != IPL_DEPTH_8U)
             {
-                LOG(Debug, "Creating grascale from new image...");
+                LOG(Info, "Creating grascale from new image...");
                 imageGrayScale = cvCreateImage(cvSize(iplImage.width,iplImage.height), IPL_DEPTH_8U, 1);
                 cvCvtColor(&iplImage, imageGrayScale, CV_BGR2GRAY);
             }
 
 			// Create Mat for further processing TODO inefficient
-			LOG(Debug, "Creating mat from new image...");
+			LOG(Info, "Creating mat from new image...");
             cv::Mat img;
             if(imageGrayScale)
             {
@@ -129,7 +156,7 @@ void ProcessingThread::run()
 
 			// Now the incoming image keypoints need to be matched to all existing images
 			// TODO - maybe not to all? Snavely takes initial images according to matches & homography inliers...
-			int idx2 = imageCnt-1;
+			int idx2 = imageInitializedCnt-1;
 			for (int idx1=0; idx1<idx2; idx1++){
 
 				std::vector< cv::DMatch > goodMatches;
@@ -149,187 +176,258 @@ void ProcessingThread::run()
 			}
 			LOG(Debug, "Stored all matches of the new image to previous images");
 
-			// If the current image is the second image - initialize stereo model
-			if (imageCnt == 2){
-		
-#ifdef __DEBUG__DISPLAY__
-				cv::Mat img_matches;
-				cv::drawMatches(sceneModel->frames[0], sceneModel->getKeypoints(0), 
-								sceneModel->frames[1], sceneModel->getKeypoints(1),
-								sceneModel->getMatches(0,1), img_matches);
-				imshow( "Good Matches", img_matches );
-				cv::waitKey(0);
-#endif
-
-				// Set arbitrary parameters - will be refined
-				P0 = cv::Matx34d(1,0,0,0,
-								0,1,0,0,
-								0,0,1,0);
-				P1 = cv::Matx34d(1,0,0,0,
-								0,1,0,0,
-								0,0,1,0);
-
-				// Attempt to find baseline traingulation
-				LOG(Debug, "Trying to find baseline triangulation...");
-
-				std::vector<cv::KeyPoint> keypoints1Refined;
-				std::vector<cv::KeyPoint> keypoints2Refined;
-				bool b = findCameraMatrices(sceneModel->K, sceneModel->Kinv, sceneModel->distortionCoefficients, 
-									sceneModel->getKeypoints(0), sceneModel->getKeypoints(1), 
-									keypoints1Refined, keypoints2Refined, P0, P1, sceneModel->getMatches(0,1), 
-									sceneModel->reconstructedPts);
-				
-				if (b){
-					LOG (Debug, "Baseline triangulation successful!");
-				}else{
-					LOG (Warn, "Baseline triangulation failed!");
-					exit(0);
-				}
-
-				// Add found matrices to pose matrices - TODO: move
-				sceneModel->poseMats[0] = P0;
-				sceneModel->poseMats[1] = P1;
-
-				// Adjust bundle for everything so far before display
-				cv::Mat temporaryCameraMatrix = sceneModel->K;
-				BundleAdjustment BA;
-				BA.adjustBundle(sceneModel->reconstructedPts,temporaryCameraMatrix,sceneModel->getKeypoints(),sceneModel->poseMats);
-				updateReprojectionErrors();
-
-				// Pass reconstructed points to 3D display		
-				std::vector<cv::Point3d> points;
-				// TODO unnecessary copying
-				for (int i = 0; i < sceneModel->reconstructedPts.size(); ++i) {
-					points.push_back(sceneModel->reconstructedPts[i].pt);
-				}
-				std::vector<cv::Vec3b> pointsRGB;
-				getRGBForPointCloud(sceneModel->reconstructedPts, pointsRGB);
-				update(points, pointsRGB,sceneModel->getCameras());
-
-#ifdef __DEBUG__DISPLAY__
-				// DEBUG - Drawing matches that survived the fundamental matrix
-				cv::drawMatches(sceneModel->frames[0], sceneModel->getKeypoints(0), 
-								sceneModel->frames[1], sceneModel->getKeypoints(1),
-								sceneModel->getMatches(0,1), img_matches, cv::Scalar(0,0,255));
-				imshow( "Good Matches After F Refinement", img_matches );
-				cv::waitKey(0);
-#endif						
-				// End of stereo initialization
-				LOG(Debug, "Initialized stereo model");
-
-				cv::Matx34d P1 = sceneModel->poseMats[1];
-				t = (cv::Mat_<double>(1,3) << P1(0,3), P1(1,3), P1(2,3));
-				R = (cv::Mat_<double>(3,3) << P1(0,0), P1(0,1), P1(0,2), 
-																P1(1,0), P1(1,1), P1(1,2), 
-																P1(2,0), P1(2,1), P1(2,2));
-				Rodrigues(R, rvec);
-
-				// Update sets which track what was processed 
-				sceneModel->doneViews.clear();
-				sceneModel->goodViews.clear();
-				sceneModel->doneViews.insert(0);
-				sceneModel->doneViews.insert(1);
-				sceneModel->goodViews.insert(0);
-				sceneModel->goodViews.insert(1);
-
-			}else if(imageCnt > 2){
-				// If this is the 3rd or next image, use it to refine stereo model
-
-				// To avoid later problems, the range of view indicies for 3d-2d point mapping
-				// Needs to be extended for every reconstructed point so far.
-				for (int i = 0; i < sceneModel->reconstructedPts.size(); ++i) {
-					// Add -1 = means that new view is not yet associated to the current 3d points
-					// The binding will be created in triangulatePointsBetweenViews()
-					sceneModel->reconstructedPts[i].imgpt_for_img.push_back(-1);
-				}
-
-				// Find correspondences from this image to already reconstructed 3D points
-				// We don't need to find image with highest correspondences [Snavely07 4.2], 
-				// as we are processing images consecutively as they appear
-				std::vector<cv::Point3f> _3dPoints; std::vector<cv::Point2f> _2dPoints;
-				LOG(Debug, "Finding 2D-3D correpondences for image ", imageCnt);
-				find2D3DCorrespondences(imageCnt-1,_3dPoints,_2dPoints);
-				sceneModel->doneViews.insert(imageCnt);
-
-				// Find pose of camera for new image based on these correspondences
-				bool poseEstimated = findPoseEstimation(imageCnt-1,rvec,t,R,_3dPoints,_2dPoints);
-				if(!poseEstimated){
-					LOG (Warn, "Pose estimation for view ", imageCnt , "failed. Continuing.");
-					continue;
-				}
-
-				// Store estimated pose	
-				sceneModel->poseMats[imageCnt-1] = cv::Matx34d	(R(0,0),R(0,1),R(0,2),t(0),
-																R(1,0),R(1,1),R(1,2),t(1),
-																R(2,0),R(2,1),R(2,2),t(2));
-
-				// Triangulate current view with all previous good views to reconstruct more 3D points
-				// Good views are those views for which camera poses were calculated successfully
-				//...
-				for (std::set<int>::iterator goodView = sceneModel->goodViews.begin(); goodView != sceneModel->goodViews.end(); ++goodView) 
-				{
-					int view = *goodView;
-					if( view == imageCnt-1 ) continue; // Skip current, this should never be reached
-
-					LOG(Debug, "Triangulating current view with view ", view);
-			
-					std::vector<CloudPoint> newTriangulated;
-					std::vector<int> addToCloud;
-					bool goodTriangulation = triangulatePointsBetweenViews(imageCnt-1,view,newTriangulated,addToCloud,imageCnt);
-					if(!goodTriangulation){
-						LOG(Warn, "Triangulating current view with view ", view, " has failed! Continuing.");
-						continue;
-					}
-
-					LOG(Info, "Number of points before triangulation ", (int)sceneModel->reconstructedPts.size());
-					for (int j=0; j<addToCloud.size(); j++) {
-						if(addToCloud[j] == 1)
-							sceneModel->reconstructedPts.push_back(newTriangulated[j]);
-					}
-					LOG(Info, "Number of points after triangulation ", (int)sceneModel->reconstructedPts.size());;
-				}
-				sceneModel->goodViews.insert(imageCnt);
-
-				// Bundle adjustment for all views & points reconstructed so far
-				cv::Mat temporaryCameraMatrix = sceneModel->K;
-				BundleAdjustment BA;
-				BA.adjustBundle(sceneModel->reconstructedPts,temporaryCameraMatrix,sceneModel->getKeypoints(),sceneModel->poseMats);
-				updateReprojectionErrors();
-
-				// Pass reconstructed points to 3D display		
-				std::vector<cv::Point3d> points;
-				// TODO unnecessary copying
-				for (int i = 0; i < sceneModel->reconstructedPts.size(); ++i) {
-					points.push_back(sceneModel->reconstructedPts[i].pt);
-				}
-				std::vector<cv::Vec3b> pointsRGB;
-				getRGBForPointCloud(sceneModel->reconstructedPts, pointsRGB);
-				update(points, pointsRGB,sceneModel->getCameras());
-			}
-		
-			/* 
-			PTAM:
-			1. Find keypoints in each image
-			2. Match keypoints from each image to previous keypoints
-			3. Initialize 3D scene from stereo pair using 5-point algorithm & select scale
-			4. Perform local and global bundle adjustment sequentially - for this save all previous descriptors
-			5. Iterate, gradually creating larger map
-			*/
-
-			/*
-			Bundler:
-			1. Compute matches for each image pair using ANN (Arya, et al. [1998])
-			2. Robustly estimate fundamental matrix for each pair using Ransac
-			3. Find matching images
-			4. Perform alignment - find homographies, starting from best matches
-			5. Update global model, refine using bundle adjustment
-			 */
             emit frameProcessed();
         }
         else
         {
-            // No frames in queue, sleep for a short while
-            msleep(THREAD_SLEEP_MS);
+			// In this set-up, if there are no waiting frames, choose consecutive best frames and reconstruct...
+			if (imageReconstructedCnt < imageInitializedCnt){
+				imageReconstructedCnt++;
+				// If there remain frames with calculated features to be processed 
+
+				// If this is the beginning - initialize stereo model
+				if (imageReconstructedCnt == 1){
+
+					if (imageInitializedCnt<2){
+						// Only one image is available - cannot initialize
+						LOG(Critical, "Only one image available - waiting...");
+						imageReconstructedCnt--;
+						break;
+					}
+					
+					imageReconstructedCnt++;
+	#ifdef __DEBUG__DISPLAY__
+					cv::Mat img_matches;
+					cv::drawMatches(sceneModel->frames[0], sceneModel->getKeypoints(0), 
+									sceneModel->frames[1], sceneModel->getKeypoints(1),
+									sceneModel->getMatches(0,1), img_matches);
+					imshow( "Good Matches", img_matches );
+					cv::waitKey(0);
+	#endif
+
+					// Set arbitrary parameters - will be refined
+					P0 = cv::Matx34d(1,0,0,0,
+									0,1,0,0,
+									0,0,1,0);
+					P1 = cv::Matx34d(1,0,0,0,
+									0,1,0,0,
+									0,0,1,0);
+
+					// Attempt to find baseline traingulation
+					LOG(Debug, "Trying to find baseline triangulation...");
+
+					// Find best two images to start with
+					std::vector<CloudPoint> tmpPcloud;
+
+					// Sort pairwise matches to find the lowest Homography inliers [Snavely07 4.2]
+					std::list<std::pair<int,std::pair<int,int> > > matchesSizes;
+					// For debugging
+					std::map<std::pair<int,int> ,std::vector<cv::DMatch> > tempMatches = sceneModel->getMatches();
+
+					for(std::map<std::pair<int,int> ,std::vector<cv::DMatch> >::iterator i = tempMatches.begin(); i != tempMatches.end(); ++i) {
+						if((*i).second.size() < 100)
+							matchesSizes.push_back(make_pair(100,(*i).first));
+						else {
+							int Hinliers = findHomographyInliers2Views((*i).first.first,(*i).first.second);
+							int percent = (int)(((double)Hinliers) / ((double)(*i).second.size()) * 100.0);
+							LOG(Info, "The percentage of inliers for images ", (*i).first.first, "," , (*i).first.second, " = ", percent);
+							matchesSizes.push_back(make_pair((int)percent,(*i).first));
+						}
+					}
+					matchesSizes.sort(sortByFirst);
+
+					// Reconstruct from two views
+					bool goodF = false;
+					int highest_pair = 0;
+					m_first_view = m_second_view = 0;
+					// Reverse iterate by number of matches
+					for(std::list<std::pair<int,std::pair<int,int> > >::iterator highest_pair = matchesSizes.begin(); 
+						highest_pair != matchesSizes.end() && !goodF; 
+						++highest_pair) 
+					{
+						m_second_view = (*highest_pair).second.second;
+						m_first_view  = (*highest_pair).second.first;
+
+						LOG(Debug, "Attempting reconstruction from view ", m_first_view, " and ", m_second_view);
+						// If reconstrcution of first two views is bad, fallback to another pair
+						// See if the Fundamental Matrix between these two views is good
+						std::vector<cv::KeyPoint> keypoints1Refined;
+						std::vector<cv::KeyPoint> keypoints2Refined;
+						goodF = findCameraMatrices(sceneModel->K, sceneModel->Kinv, sceneModel->distortionCoefficients, 
+								sceneModel->getKeypoints(m_first_view), sceneModel->getKeypoints(m_second_view), 
+								keypoints1Refined, keypoints2Refined, P0, P1, sceneModel->getMatches(m_first_view,m_second_view), 
+								tmpPcloud);
+
+						if (goodF) {
+							std::vector<CloudPoint> new_triangulated;
+							std::vector<int> add_to_cloud;
+
+							sceneModel->poseMats[m_first_view] = P0;
+							sceneModel->poseMats[m_second_view] = P1;
+
+							// TODO imageInitialzedCnt used to initalize correspondence matching vector
+							// Will fail if more images are added later...
+							bool good_triangulation = triangulatePointsBetweenViews(m_second_view,m_first_view,new_triangulated,add_to_cloud, imageInitializedCnt);
+							if(!good_triangulation || cv::countNonZero(add_to_cloud) < 10) {
+								LOG(Debug, " Triangulation failed");
+								goodF = false;
+								sceneModel->poseMats[m_first_view] = 0;
+								sceneModel->poseMats[m_second_view] = 0;
+								m_second_view++;
+							} else {
+								assert(new_triangulated[0].imgpt_for_img.size() > 0);
+								LOG(Debug, " Points before triangulation: ", (int)sceneModel->reconstructedPts.size());
+								for (unsigned int j=0; j<add_to_cloud.size(); j++) {
+									if(add_to_cloud[j] == 1) {
+										sceneModel->reconstructedPts.push_back(new_triangulated[j]);
+									}
+								}
+								LOG(Debug, " Points after triangulation: ", (int)sceneModel->reconstructedPts.size());
+							}				
+						}
+					}
+		
+					if (!goodF) {
+						LOG(Error, "Cannot find a good pair of images to obtain a baseline triangulation");
+						exit(0);
+					}
+
+					LOG(Debug, "===================================================================");
+					LOG(Debug, "Taking baseline from " , m_first_view , " and " , m_second_view);
+					LOG(Debug, "===================================================================");
+
+					// Adjust bundle for everything so far before display
+					cv::Mat temporaryCameraMatrix = sceneModel->K;
+					BundleAdjustment BA;
+					BA.adjustBundle(sceneModel->reconstructedPts,temporaryCameraMatrix,sceneModel->getKeypoints(),sceneModel->poseMats);
+					updateReprojectionErrors();
+
+					// Pass reconstructed points to 3D display		
+					std::vector<cv::Point3d> points;
+					// TODO unnecessary copying
+					for (int i = 0; i < sceneModel->reconstructedPts.size(); ++i) {
+						points.push_back(sceneModel->reconstructedPts[i].pt);
+					}
+					std::vector<cv::Vec3b> pointsRGB;
+					getRGBForPointCloud(sceneModel->reconstructedPts, pointsRGB);
+					update(points, pointsRGB,sceneModel->getCameras());
+
+	#ifdef __DEBUG__DISPLAY__
+					// DEBUG - Drawing matches that survived the fundamental matrix
+					cv::drawMatches(sceneModel->frames[0], sceneModel->getKeypoints(0), 
+									sceneModel->frames[1], sceneModel->getKeypoints(1),
+									sceneModel->getMatches(0,1), img_matches, cv::Scalar(0,0,255));
+					imshow( "Good Matches After F Refinement", img_matches );
+					cv::waitKey(0);
+	#endif						
+					// End of stereo initialization
+					LOG(Debug, "Initialized stereo model");
+
+					cv::Matx34d P1 = sceneModel->poseMats[m_second_view];
+					t = (cv::Mat_<double>(1,3) << P1(0,3), P1(1,3), P1(2,3));
+					R = (cv::Mat_<double>(3,3) << P1(0,0), P1(0,1), P1(0,2), 
+													P1(1,0), P1(1,1), P1(1,2), 
+													P1(2,0), P1(2,1), P1(2,2));
+					Rodrigues(R, rvec);
+
+					// Update sets which track what was processed 
+					sceneModel->doneViews.clear();
+					sceneModel->goodViews.clear();
+					sceneModel->doneViews.insert(m_first_view);
+					sceneModel->doneViews.insert(m_second_view);
+					sceneModel->goodViews.insert(m_first_view);
+					sceneModel->goodViews.insert(m_second_view);
+
+				}else if(imageReconstructedCnt > 2){
+					// If this is the 3rd or next image, use it to refine stereo model
+
+					// To avoid later problems, the range of view indicies for 3d-2d point mapping
+					// Needs to be extended for every reconstructed point so far.
+					for (int i = 0; i < sceneModel->reconstructedPts.size(); ++i) {
+						// Add -1 = means that new view is not yet associated to the current 3d points
+						// The binding will be created in triangulatePointsBetweenViews()
+						sceneModel->reconstructedPts[i].imgpt_for_img.push_back(-1);
+					}
+
+					// Find image with highest 2d-3d correspondance [Snavely07 4.2]
+					int max_2d3d_view = -1;
+					int max_2d3d_count = 0;
+					std::vector<cv::Point3f> _3dPoints; 
+					std::vector<cv::Point2f> _2dPoints;
+					for (unsigned int _i=0; _i < imageInitializedCnt; _i++) {
+						if(sceneModel->doneViews.find(_i) != sceneModel->doneViews.end()) continue; //already done with this view
+
+						std::vector<cv::Point3f> tmp3d; std::vector<cv::Point2f> tmp2d;
+						find2D3DCorrespondences(_i,tmp3d,tmp2d);
+						if(tmp3d.size() > max_2d3d_count) {
+							max_2d3d_count = tmp3d.size();
+							max_2d3d_view = _i;
+							_3dPoints = tmp3d; _2dPoints = tmp2d;
+						}
+					}
+					int i = max_2d3d_view; //highest 2d3d matching view
+					LOG(Debug, "Image with most 2D-3D correspondences is ", i, " with ", max_2d3d_count);
+					sceneModel->doneViews.insert(i);
+
+					// Find pose of camera for new image based on these correspondences
+					bool poseEstimated = findPoseEstimation(i,rvec,t,R,_3dPoints,_2dPoints);
+					if(!poseEstimated){
+						LOG (Warn, "Pose estimation for view ", i , "failed. Continuing.");
+						continue;
+					}
+
+					// Store estimated pose	
+					sceneModel->poseMats[i] = cv::Matx34d	(R(0,0),R(0,1),R(0,2),t(0),
+															R(1,0),R(1,1),R(1,2),t(1),
+															R(2,0),R(2,1),R(2,2),t(2));
+
+					// Triangulate current view with all previous good views to reconstruct more 3D points
+					// Good views are those views for which camera poses were calculated successfully
+					//...
+					for (std::set<int>::iterator goodView = sceneModel->goodViews.begin(); goodView != sceneModel->goodViews.end(); ++goodView) 
+					{
+						int view = *goodView;
+						if( view == i ) continue; // Skip current
+			
+						std::vector<CloudPoint> newTriangulated;
+						std::vector<int> addToCloud;
+						bool goodTriangulation = triangulatePointsBetweenViews(i,view,newTriangulated,addToCloud, imageInitializedCnt);
+						if(!goodTriangulation){
+							LOG(Warn, "Triangulating current view with view ", view, " has failed! Continuing.");
+							continue;
+						}
+
+						LOG(Info, "Number of points before triangulation ", (int)sceneModel->reconstructedPts.size());
+						for (int j=0; j<addToCloud.size(); j++) {
+							if(addToCloud[j] == 1)
+								sceneModel->reconstructedPts.push_back(newTriangulated[j]);
+						}
+						LOG(Info, "Number of points after triangulation ", (int)sceneModel->reconstructedPts.size());;
+					}
+					sceneModel->goodViews.insert(i);
+
+					// Bundle adjustment for all views & points reconstructed so far
+					cv::Mat temporaryCameraMatrix = sceneModel->K;
+					BundleAdjustment BA;
+					BA.adjustBundle(sceneModel->reconstructedPts,temporaryCameraMatrix,sceneModel->getKeypoints(),sceneModel->poseMats);
+					updateReprojectionErrors();
+
+					// Pass reconstructed points to 3D display		
+					std::vector<cv::Point3d> points;
+					// TODO unnecessary copying
+					for (int i = 0; i < sceneModel->reconstructedPts.size(); ++i) {
+						points.push_back(sceneModel->reconstructedPts[i].pt);
+					}
+					std::vector<cv::Vec3b> pointsRGB;
+					getRGBForPointCloud(sceneModel->reconstructedPts, pointsRGB);
+					update(points, pointsRGB,sceneModel->getCameras());
+				}
+								
+
+			}else{
+				// No frames in queue, sleep for a short while
+				msleep(THREAD_SLEEP_MS);
+			}
         }
     }
 }
@@ -407,7 +505,7 @@ void ProcessingThread::find2D3DCorrespondences(int currentView,
 			}
 		}
 	}
-	LOG(Debug, "Found ", ppcloud.size(), " 3d-2d point correspondences");
+	LOG(Debug, "Found ", ppcloud.size(), " 3d-2d point correspondences for view ", currentView);
 }
 
 bool ProcessingThread::findPoseEstimation(
@@ -643,14 +741,13 @@ bool ProcessingThread::triangulatePointsBetweenViews(
 			}
 		}
 	}
-	LOG(Info, "Number of points found in other views: ", foundOtherViewsCount, "/", newTriangulated.size());
+	LOG(Debug, "Number of points found in other views: ", foundOtherViewsCount, "/", newTriangulated.size());
 	LOG(Debug, "Adding new points from triangulation: ", cv::countNonZero(addToCloud));
 	return true;
 }
 
 void ProcessingThread::updateReprojectionErrors(){
 	// Here we want to calculate the total reprojection error for all reconstructed points so far
-	//============================================================================================
 
 	double averageTotalReprojectionError = 0.0;
 
@@ -709,6 +806,24 @@ void ProcessingThread::updateReprojectionErrors(){
 	// Normalize total reprojection error
 	averageTotalReprojectionError = averageTotalReprojectionError / sceneModel->reconstructedPts.size();
 
-	LOG(Debug, "!!! Average total reprojection error: ", averageTotalReprojectionError);
-	//============================================================================================
+	LOG(Debug, "===================================================================");
+	LOG(Debug, "Finished BA, average total reprojection error: ", averageTotalReprojectionError);
+	LOG(Debug, "===================================================================");
+}
+
+// Following Snavely07 4.2 - find how many inliers are in the Homography between 2 views
+int ProcessingThread::findHomographyInliers2Views(int vi, int vj) 
+{
+	std::vector<cv::KeyPoint> ikpts,jkpts; 
+	std::vector<cv::Point2f> ipts,jpts;
+	getAlignedPointsFromMatch(sceneModel->getKeypoints(vi),sceneModel->getKeypoints(vj),
+		sceneModel->getMatches()[std::make_pair(vi,vj)],ikpts,jkpts);
+	keyPointsToPoints(jkpts,jpts);
+	keyPointsToPoints(ikpts,ipts);
+
+	double minVal,maxVal; cv::minMaxIdx(ipts,&minVal,&maxVal); //TODO flatten point2d?? or it takes max of width and height
+
+	std::vector<uchar> status;
+	cv::Mat H = cv::findHomography(ipts,jpts,status,CV_RANSAC, 0.004 * maxVal); //threshold from Snavely07
+	return cv::countNonZero(status); //number of inliers
 }

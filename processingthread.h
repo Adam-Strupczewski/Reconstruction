@@ -77,6 +77,11 @@ private:
 										int numViews); 
 
 	void updateReprojectionErrors();
+
+	int findHomographyInliers2Views(int vi, int vj);
+
+	int m_first_view;
+	int m_second_view; //baseline's second view other to 0
 };
 
 #endif // PROCESSINGTHREAD_H

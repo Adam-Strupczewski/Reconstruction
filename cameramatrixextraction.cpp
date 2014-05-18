@@ -17,6 +17,8 @@ bool findCameraMatrices(const cv::Mat& K,
 						std::vector<cv::DMatch>& matches,
 						std::vector<CloudPoint>& reconstructedCloud){
 
+	// Watch out - the reconstructedCloud found here is actually unused later!
+
 	double time = cv::getTickCount();
 
 	// Matches will get substituted to filtered ones
@@ -79,11 +81,11 @@ bool findCameraMatrices(const cv::Mat& K,
 		double reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
 		
 		// TODO add which point is which - will fail for more than 2 images
-		for (int j = 0; j<pcloud0.size(); j++) {
-			pcloud0[j].imgpt_for_img.resize(2);
-			pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
-			pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
-		}
+		//for (int j = 0; j<pcloud0.size(); j++) {
+		//	pcloud0[j].imgpt_for_img.resize(2);
+		//	pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
+		//	pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
+		//}
 
 		std::vector<uchar> tmp_status;
 		if (!testTriangulation(pcloud0,P1,tmp_status) || !testTriangulation(pcloud1,P0,tmp_status) || reproj_error1 > 100.0 || reproj_error2 > 100.0) {
@@ -98,11 +100,11 @@ bool findCameraMatrices(const cv::Mat& K,
 			reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 			reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
 		// TODO add which point is which - will fail for more than 2 images
-			for (int j = 0; j<pcloud0.size(); j++) {
-				pcloud0[j].imgpt_for_img.resize(2);
-				pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
-				pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
-			}
+			//for (int j = 0; j<pcloud0.size(); j++) {
+			//	pcloud0[j].imgpt_for_img.resize(2);
+			//	pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
+			//	pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
+			//}
 
 			if (!testTriangulation(pcloud0,P1,tmp_status) || !testTriangulation(pcloud1,P0,tmp_status) || reproj_error1 > 100.0 || reproj_error2 > 100.0) {
 				if (!checkCoherentRotation(R2)) {
@@ -121,11 +123,11 @@ bool findCameraMatrices(const cv::Mat& K,
 				reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 				reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
 		// TODO add which point is which - will fail for more than 2 images
-				for (int j = 0; j<pcloud0.size(); j++) {
-					pcloud0[j].imgpt_for_img.resize(2);
-					pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
-					pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
-				}
+				//for (int j = 0; j<pcloud0.size(); j++) {
+				//	pcloud0[j].imgpt_for_img.resize(2);
+				//	pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
+				//	pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
+				//}
 
 				if (!testTriangulation(pcloud0,P1,tmp_status) || !testTriangulation(pcloud1,P0,tmp_status) || reproj_error1 > 100.0 || reproj_error2 > 100.0) {
 					P1 = cv::Matx34d(R2(0,0),	R2(0,1),	R2(0,2),	t2(0),
@@ -138,11 +140,11 @@ bool findCameraMatrices(const cv::Mat& K,
 					reproj_error1 = triangulatePoints(keypoints1_refined, keypoints2_refined, K, Kinv, distcoeff, P0, P1, pcloud0);
 					reproj_error2 = triangulatePoints(keypoints2_refined, keypoints1_refined, K, Kinv, distcoeff, P1, P0, pcloud1);
 		// TODO add which point is which - will fail for more than 2 images
-					for (int j = 0; j<pcloud0.size(); j++) {
-						pcloud0[j].imgpt_for_img.resize(2);
-						pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
-						pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
-					}
+					//for (int j = 0; j<pcloud0.size(); j++) {
+					//	pcloud0[j].imgpt_for_img.resize(2);
+					//	pcloud0[j].imgpt_for_img[0] = matches[j].queryIdx;	//2D reference to <older_view>
+					//	pcloud0[j].imgpt_for_img[1] = matches[j].trainIdx;	//2D reference to <working_view>
+					//}
 
 					if (!testTriangulation(pcloud0,P1,tmp_status) || !testTriangulation(pcloud1,P0,tmp_status) || reproj_error1 > 100.0 || reproj_error2 > 100.0) {
 						LOG(Warn, "Triangulation has failed");

@@ -1,6 +1,5 @@
 #include "stdafx.h"
 
-#include "common.h"
 #include "triangulation.h"
 
 double triangulatePoints(const std::vector<cv::KeyPoint>& pt_set1, 

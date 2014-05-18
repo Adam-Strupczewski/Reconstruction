@@ -3,6 +3,7 @@
 
 #define EPSILON 0.0001
 
+#include "common.h"
 #include "logging.h"
 #include "scenemodel.h"
 

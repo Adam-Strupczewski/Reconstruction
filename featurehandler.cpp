@@ -144,7 +144,7 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 
 	////////////////////////////////////////////
 
-	LOG(Debug, "Calculated coarse matches");
+	LOG(Info, "Calculated coarse matches");
 	LOG(Info, "Number of coarse matches: ", (int)matches.size());
 	
 	double max_dist = 0; double min_dist = 0.0;
