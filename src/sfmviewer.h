@@ -35,7 +35,6 @@ private:
 	std::vector<cv::Point3d> points;
 	std::vector<cv::Vec3b> pointsRGB;
 
-
 	// Necessary for drawing cameras axes
 	std::vector<cv::Matx34d> cameras;
 	std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>> cameraTransforms;
