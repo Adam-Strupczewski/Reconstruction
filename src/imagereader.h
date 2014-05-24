@@ -4,11 +4,15 @@
 #include <QImage>
 #include <QString>
 
+#include "scenemodel.h"
+
 class ImageReader
 {
 public:
     explicit ImageReader();
     virtual ~ImageReader();
+
+	void initialize(SceneModel * sceneModel);
 
     void setImageBuffers(QImage *im1, QImage *im2);
 
@@ -16,13 +20,13 @@ public:
 
 private:
 
-    QString getNextImagePath();
-
     QString folderPath;
-    QString imageBaseName;
-    int imageAmount;
 
     int currentImage;
+	QStringList imageFileList;
+	QStringList keypointFileList;
+
+	SceneModel * sceneModel;
 
     // These buffers are set and managed externally
     QImage * imageBuffer1;

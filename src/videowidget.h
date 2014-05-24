@@ -17,7 +17,7 @@ public:
     explicit VideoWidget(QWidget *parent = 0);
     virtual ~VideoWidget();
 
-	void initialize(SFMViewer *sfmViewer);
+	void initialize(SFMViewer *sfmViewer, SceneModel * sceneModel);
 
     void setImageBuffers(QImage *im1, QImage *im2);
 
@@ -54,8 +54,6 @@ private:
     // These buffers are set and managed externally
     QImage * imageBuffer1;
     QImage * imageBuffer2;
-
-	SceneModel * sceneModel;
 };
 
 #endif

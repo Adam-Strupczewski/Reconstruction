@@ -47,6 +47,7 @@
 
 #include <QMainWindow>
 
+#include "scenemodel.h"
 #include "sfmviewer.h"
 
 #include "videosurface.h"
@@ -86,6 +87,7 @@ private:
     QCamera *camera;
     ImageReadingThread *imageThread;
 
+	SceneModel * sceneModel;
 	SFMViewer *sfmViewer;
 
     QCamera::Status cameraStatus;

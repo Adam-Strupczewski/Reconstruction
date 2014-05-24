@@ -8,4 +8,6 @@
 #define DECOMPOSE_E_USING_SVD
 #define SVD_USING_OPENCV
 
+#define KEYPOINTS_FROM_FILE
+
 #endif

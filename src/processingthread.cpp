@@ -10,7 +10,8 @@
 
 #include <opencv2/nonfree/features2d.hpp>
 
-static const int QUEUE_MAX_LENGTH = 5;
+// TODO For real-time reconstrcution queue has to be more limited!
+static const int QUEUE_MAX_LENGTH = 20;
 static const int THREAD_SLEEP_MS = 25;
 
 /* 
@@ -71,6 +72,12 @@ void ProcessingThread::run()
 	int imageInitializedCnt = 0;
 	int imageReconstructedCnt = 0;
 
+#ifdef KEYPOINTS_FROM_FILE
+	// Read all matches
+	//reconstructionHandler->readMatchesFromFile();
+	reconstructionHandler->readMatchesFromFileAfterRansac();
+#endif
+
     while (!stopped)
     {
 
@@ -115,9 +122,12 @@ void ProcessingThread::run()
                 img =  cv::Mat(&iplImage);
             }
 
+#ifdef KEYPOINTS_FROM_FILE
+			reconstructionHandler->readKeypointsFromFile(imageInitializedCnt-1);
+#else
 			// Will calculate keypoints, descriptors and matches
 			reconstructionHandler->initializeImage(img, imageInitializedCnt);
-
+#endif
 			// Attention! cv::drawKeypoints requires color image!
 			cv::Mat imgWithKeypoints;
 			cv::drawKeypoints( cv::Mat(&iplImage)/*img*/, sceneModel->getKeypoints(imageInitializedCnt-1), imgWithKeypoints, cv::Scalar::all(-1), cv::DrawMatchesFlags::DEFAULT );

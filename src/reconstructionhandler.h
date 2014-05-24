@@ -18,6 +18,10 @@ public:
 	bool initializeStereoModel(std::vector<cv::Point3d> &points, std::vector<cv::Vec3b> &pointsRGB, int imageInitializedCnt);
 	bool addNextViewToStereoModel(std::vector<cv::Point3d> &points, std::vector<cv::Vec3b> &pointsRGB, int imageInitializedCnt);
 
+	void readMatchesFromFile();
+	void readMatchesFromFileAfterRansac();
+	void readKeypointsFromFile(int fileIndex);
+
 private:
 	SceneModel *sceneModel;
 	FeatureHandler *featureHandler;

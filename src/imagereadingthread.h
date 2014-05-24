@@ -5,6 +5,7 @@
 #include <QImage>
 #include <QQueue>
 
+#include "scenemodel.h"
 #include "imagereader.h"
 
 class ImageReadingThread : public QThread
@@ -14,7 +15,7 @@ public:
     explicit ImageReadingThread(QObject *parent = 0);
     virtual ~ImageReadingThread();
 
-	void initialize();
+	void initialize(SceneModel * sceneModel);
 
     void setImageBuffers(QImage *im1, QImage *im2);
 

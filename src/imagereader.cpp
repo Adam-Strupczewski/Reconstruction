@@ -6,21 +6,37 @@
 
 ImageReader::ImageReader()
 {
-    //folderPath = "images/";
-    //imageBaseName = "et00";
-	folderPath = "images2/";
-    imageBaseName = "p00";
-	//folderPath = "images3/";
-    //imageBaseName = "R000";
-	//folderPath = "images4/";
-    //imageBaseName = "kermit00";
-    imageAmount = 10;
-
+	folderPath = "images4/";
     currentImage = 0;
 }
 
 ImageReader::~ImageReader()
 {
+}
+
+void ImageReader::initialize(SceneModel * sceneModel)
+{
+	this->sceneModel = sceneModel;
+
+	QStringList nameFilter("*.jpg");
+	nameFilter << "*.JPG";
+	nameFilter << "*.png";
+	nameFilter << "*.PNG";
+
+	QDir directory(folderPath);
+	imageFileList = directory.entryList(nameFilter, QDir::Files);
+
+	if (imageFileList.size()==0)
+		return;
+
+	// Save image file list and descriptor file list in sceneModel
+	sceneModel->folderPath = folderPath;
+	sceneModel->imageFileList = imageFileList;
+	keypointFileList = imageFileList;
+
+	QString extension = imageFileList[0].right(4);
+	keypointFileList.replaceInStrings(extension, ".key");
+	sceneModel->keypointFileList = keypointFileList;
 }
 
 void ImageReader::setImageBuffers(QImage *im1, QImage *im2){
@@ -30,7 +46,12 @@ void ImageReader::setImageBuffers(QImage *im1, QImage *im2){
 
 bool ImageReader::getNextImage()
 {
-    QString currentPath = getNextImagePath();
+	if (currentImage>=imageFileList.size())
+		return false;
+
+    QString currentPath = folderPath + imageFileList.at(currentImage);
+	currentImage++;
+
     QImageReader reader(currentPath);
 	reader.setScaledSize(QSize(640,480));
 
@@ -44,14 +65,4 @@ bool ImageReader::getNextImage()
         // TODO
         return false;
     }
-}
-
-QString ImageReader::getNextImagePath(){
-    QString path = "";
-    if (currentImage<imageAmount){
-        path = folderPath + imageBaseName + QString::number(currentImage) + ".jpg";
-        currentImage++;
-    }
-
-    return path;
 }

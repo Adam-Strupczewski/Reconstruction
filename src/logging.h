@@ -7,7 +7,7 @@
 
 enum LogLevel {Info, Debug, Warn, Critical, Error, None};
 
-static const LogLevel LOG_LEVEL = Debug;
+static const LogLevel LOG_LEVEL = Info;
 
 QString getPrefix(LogLevel level);
 

@@ -51,9 +51,7 @@
 	 surface = new VideoSurface(this);
  }
 
- void VideoWidget::initialize(SFMViewer *sfmViewer){
-	 
-	 sceneModel = new SceneModel();
+ void VideoWidget::initialize(SFMViewer *sfmViewer, SceneModel * sceneModel){
 
      // Connect surface to our slot
      connect(surface, SIGNAL(frameAvailable()), this, SLOT(frameReady()));
@@ -78,8 +76,6 @@
 		surface->stop();
 		delete surface;
 	 }
-
-	 delete sceneModel;
  }
 
  void VideoWidget::setImageBuffers(QImage *im1, QImage *im2){

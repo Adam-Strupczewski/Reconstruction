@@ -51,6 +51,10 @@ public:
 
 	int getFrameCount();
 
+	QString folderPath;
+	QStringList imageFileList;
+	QStringList keypointFileList;
+
 	// TEMPORARY FOR VISUALIZATION
 	std::vector<cv::Mat> frames;
 	std::vector<cv::Mat_<cv::Vec3b> > framesRGB;

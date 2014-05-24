@@ -124,7 +124,11 @@ double triangulatePoints(const std::vector<cv::KeyPoint>& pt_set1,
 #endif
 	
 	LOG(Debug, "Finished triangulating points...");
-	return mse[0];
+	if (reproj_error.size()==0){
+		return 0.0;
+	}else{
+		return mse[0];
+	}
 }
 
 /**

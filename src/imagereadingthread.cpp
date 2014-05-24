@@ -18,7 +18,8 @@ ImageReadingThread::~ImageReadingThread()
     stop();
 }
 
-void ImageReadingThread::initialize(){
+void ImageReadingThread::initialize(SceneModel * sceneModel){
+	imageReader.initialize(sceneModel);
 }
 
 void ImageReadingThread::setImageBuffers(QImage *im1, QImage *im2){

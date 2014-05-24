@@ -493,6 +493,11 @@ bool ReconstructionHandler::triangulatePointsBetweenViews(
 	double reprojectionError = triangulatePoints(pt_set1, pt_set2, sceneModel->K, sceneModel->Kinv, sceneModel->distortionCoefficients, P0, P1, newTriangulated);
 	LOG(Info, "Triangulation reprojection error ", reprojectionError);
 
+	if (newTriangulated.size()==0){
+		LOG(Warn, "Zero points were triangulated");
+		return false;
+	}
+
 	std::vector<uchar> trig_status;
 	if(!testTriangulation(newTriangulated, P0, trig_status) || 
 		!testTriangulation(newTriangulated, P1, trig_status)) {
@@ -689,4 +694,123 @@ int ReconstructionHandler::findHomographyInliers2Views(int vi, int vj)
 	std::vector<uchar> status;
 	cv::Mat H = cv::findHomography(ipts,jpts,status,CV_RANSAC, 0.004 * maxVal); //threshold from Snavely07
 	return cv::countNonZero(status); //number of inliers
+}
+
+void ReconstructionHandler::readMatchesFromFile(){
+	QString filePath = sceneModel->folderPath + "matches.init.txt";
+	QFile f(filePath);
+	f.open(QIODevice::ReadOnly);
+	QTextStream in(&f);
+
+	while(!in.atEnd()) {
+		std::vector< cv::DMatch > matches;
+
+		QString line = in.readLine();    
+		QStringList fields = line.split(" ");    
+		int imgIdx1 = fields[0].toInt();
+		int imgIdx2 = fields[1].toInt();
+		line = in.readLine();  
+		int numberMatches = line.toInt();
+		for (int i=0; i<numberMatches; ++i){
+			QString line = in.readLine();
+			QStringList fields = line.split(" ");
+			int matchIdx1 = fields[0].toInt();
+			int matchIdx2 = fields[1].toInt();
+			matches.push_back(cv::DMatch(matchIdx1, matchIdx2, 1.0));
+		}
+		sceneModel->addMatches(imgIdx1, imgIdx2, matches);
+
+		std::vector<cv::DMatch> matchesFlipped = featureHandler->flipMatches(matches);
+		sceneModel->addMatches(imgIdx2, imgIdx1,matchesFlipped);
+	}
+
+	f.close();
+}
+
+void ReconstructionHandler::readMatchesFromFileAfterRansac(){
+
+
+	QString filePath1 = sceneModel->folderPath + "nmatches.ransac.txt";
+	QFile f1(filePath1);
+	f1.open(QIODevice::ReadOnly);
+	QTextStream in1(&f1);
+
+	QString filePath2= sceneModel->folderPath + "matches.ransac.txt";
+	QFile f2(filePath2);
+	f2.open(QIODevice::ReadOnly);
+	QTextStream in2(&f2);
+
+	QString line = in1.readLine();    
+	int numImages = line.toInt();
+
+	for (int i=0; i<numImages; ++i){
+		line = in1.readLine();
+		QStringList fields = line.split(" ");
+		for (int j=0; j<numImages; ++j){
+			
+			std::vector< cv::DMatch > matches;
+			int numberMatches = fields[j].toInt();
+
+			// If no matches - continue
+			if (numberMatches==0)
+				continue;
+
+			//We want to read these matches from second file
+			while (1){
+				QString lineMatches = in2.readLine();   
+				if (lineMatches.length()==0)
+					continue;
+				// We have valid line
+				QStringList fieldsMatches = lineMatches.split(" ");
+				for (int k=0; k<numberMatches; ++k){
+					int matchIdx1 = fieldsMatches[2*k].toInt();
+					int matchIdx2 = fieldsMatches[2*k+1].toInt();
+					matches.push_back(cv::DMatch(matchIdx1, matchIdx2, 1.0));
+				}
+				break;
+			}
+			sceneModel->addMatches(i, j, matches);
+			std::vector<cv::DMatch> matchesFlipped = featureHandler->flipMatches(matches);
+			sceneModel->addMatches(j, i,matchesFlipped);	
+		}
+	}
+
+	f1.close();
+	f2.close();
+}
+
+void ReconstructionHandler::readKeypointsFromFile(int fileIndex)
+{
+	// Alternatively load keypoints and matches from file
+	std::vector<cv::KeyPoint> keypoints;
+
+	QString filePath = sceneModel->folderPath + sceneModel->keypointFileList.at(fileIndex);
+	QFile f(filePath);
+	f.open(QIODevice::ReadOnly);
+	QTextStream in(&f);
+
+	QString line = in.readLine();    
+	QStringList fields = line.split(" ");
+	int numFeatures = fields[0].toInt();
+	int sizeOfFeature = fields[1].toInt();
+
+	// Every feature is one line position, scale and orientation
+	// Next seven lines are feature data
+	// We only need info from first line
+	for (int i=0; i<numFeatures; ++i){
+		QString line = in.readLine();    
+		QStringList fields = line.split(" ");
+		double y = fields[0].toDouble();
+		double x = fields[1].toDouble();
+		double size = fields[2].toDouble();
+		double angle = fields[3].toDouble();
+		keypoints.push_back(cv::KeyPoint(x,y,size,angle));
+		// Read and discard actual keypoint data
+		for (int j=0; j<7; ++j){
+			in.readLine();
+		}
+	}
+
+	f.close();
+	sceneModel->addNewFramePoints(keypoints);
 }
