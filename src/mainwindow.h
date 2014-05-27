@@ -66,6 +66,8 @@ public:
     MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
+	void initialize(QString qstr, int i);
+
 private slots:
     void setCamera(const QByteArray &cameraDevice);
     void startCamera();

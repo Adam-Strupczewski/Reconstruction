@@ -6,7 +6,6 @@
 
 ImageReader::ImageReader()
 {
-	folderPath = "images4/";
     currentImage = 0;
 }
 
@@ -17,6 +16,8 @@ ImageReader::~ImageReader()
 void ImageReader::initialize(SceneModel * sceneModel)
 {
 	this->sceneModel = sceneModel;
+
+	folderPath = sceneModel->folderPath;
 
 	QStringList nameFilter("*.jpg");
 	nameFilter << "*.JPG";
@@ -30,7 +31,10 @@ void ImageReader::initialize(SceneModel * sceneModel)
 		return;
 
 	// Save image file list and descriptor file list in sceneModel
-	sceneModel->folderPath = folderPath;
+	if (sceneModel->imageLimit!=0){
+		imageFileList = imageFileList.mid(0,sceneModel->imageLimit);
+	}
+
 	sceneModel->imageFileList = imageFileList;
 	keypointFileList = imageFileList;
 
@@ -53,7 +57,13 @@ bool ImageReader::getNextImage()
 	currentImage++;
 
     QImageReader reader(currentPath);
-	reader.setScaledSize(QSize(640,480));
+	//reader.setScaledSize(QSize(640,480));
+
+	if (currentImage==1){
+		// Initialize focal lengths etc
+		QSize size = reader.size();
+		sceneModel->initialize(size.width(), size.height());
+	}
 
     if (reader.canRead()){
         if ((currentImage%2)==1){

@@ -213,21 +213,42 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 	Knew[2][2] = 1.0;
 	
 //	showErrorStatistics(f0, distortion, cams, Xs, measurements, correspondingView, correspondingPoint);
-	
+
+#if 1
 	if(good_adjustment) { //good adjustment?
 		
-		//Vector3d mean(0.0, 0.0, 0.0);
-		//for (unsigned int j = 0; j < Xs.size(); ++j) addVectorsIP(Xs[j], mean);
-		//scaleVectorIP(1.0/Xs.size(), mean);
-		//
-		//vector<float> norms(Xs.size());
-		//for (unsigned int j = 0; j < Xs.size(); ++j)
-		//	norms[j] = distance_L2(Xs[j], mean);
-		//
-		//std::sort(norms.begin(), norms.end());
-		//float distThr = norms[int(norms.size() * 0.9f)];
-		//qDebug() << "90% quantile distance: " << distThr << endl;
+		// Filter points that are very far away from object center
+		Vector3d mean(0.0, 0.0, 0.0);
+		for (unsigned int j = 0; j < Xs.size(); ++j) addVectorsIP(Xs[j], mean);
+		scaleVectorIP(1.0/Xs.size(), mean);
 		
+		vector<float> norms(Xs.size());
+		for (unsigned int j = 0; j < Xs.size(); ++j)
+			norms[j] = distance_L2(Xs[j], mean);
+		
+		std::sort(norms.begin(), norms.end());
+		float distThr = norms[int(norms.size() * 0.9f)];
+		qDebug() << "90% quantile distance: " << distThr << endl;
+
+		// Ensure distance threshold is not too small
+		if (distThr < 3.0){
+			distThr = 3.0;
+		}
+
+		// Iterate from end - to handle point removing
+		for (int j = Xs.size()-1; j>=0; --j){
+		
+			if (distance_L2(Xs[j], mean) > 3*distThr) {
+				// Get rid of points that are too far away
+				pointcloud.erase(pointcloud.begin()+j);
+				continue;
+			}
+
+			pointcloud[j].pt.x = Xs[j][0];
+			pointcloud[j].pt.y = Xs[j][1];
+			pointcloud[j].pt.z = Xs[j][2];		
+		}
+#else
 		//extract 3D points
 		for (unsigned int j = 0; j < Xs.size(); ++j)
 		{
@@ -237,7 +258,7 @@ void BundleAdjustment::adjustBundle(vector<CloudPoint>& pointcloud,
 			pointcloud[j].pt.y = Xs[j][1];
 			pointcloud[j].pt.z = Xs[j][2];
 		}
-		
+#endif	
 		//extract adjusted cameras
 		for (int i = 0; i < N; ++i)
 		{

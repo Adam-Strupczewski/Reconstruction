@@ -6,24 +6,27 @@
 SceneModel::SceneModel()
 {	
 	counter = 0;
+	distortionCoefficients = cv::Mat::zeros(8, 1, CV_64F);
+}
+
+SceneModel::~SceneModel(){
+
+}
+
+void SceneModel::initialize(int w, int h){
 
 	// Initialize camera parameters
 	K = cv::Mat::eye(3, 3, CV_64F);
-	K.at<double>(0,0) = 640;
-	K.at<double>(1,1) = 640;
-	K.at<double>(0,2) = 320;
-	K.at<double>(1,2) = 240;
+	K.at<double>(0,0) = qMax(w,h);
+	K.at<double>(1,1) = qMax(w,h);
+	K.at<double>(0,2) = w/2;
+	K.at<double>(1,2) = h/2;
 
 	LOG(Debug, "Camera internal matrix: ");
 	LOG(Debug, K);
 	
 	// Get inverse of camera matrix
 	invert(K, Kinv); 
-
-	distortionCoefficients = cv::Mat::zeros(8, 1, CV_64F);
-}
-
-SceneModel::~SceneModel(){
 
 }
 
@@ -70,4 +73,15 @@ std::vector< cv::DMatch > SceneModel::getMatches(int i, int j){
 
 int SceneModel::getFrameCount(){
 	return keypointDatabase.size();
+}
+
+int SceneModel::getNumberOfObservations(){
+	int n=0;
+	for (int i=0; i<reconstructedPts.size(); ++i){
+		for (int j=0; j<reconstructedPts[0].imgpt_for_img.size(); ++j){
+			if (reconstructedPts[i].imgpt_for_img[j]!=-1)
+				n++;
+		}
+	}
+	return n;
 }

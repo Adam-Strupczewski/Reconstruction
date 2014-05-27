@@ -103,11 +103,6 @@ MainWindow::MainWindow(QWidget *parent) :
         createImageReadingThread();
         connect(imageThread, SIGNAL(imageReady()), ui->videoWidget, SLOT(imageReady()));
     }
-
-	// Initialize all objects
-	sceneModel = new SceneModel();
-	imageThread->initialize(sceneModel);
-	ui->videoWidget->initialize(sfmViewer, sceneModel);
 }
 
 MainWindow::~MainWindow()
@@ -124,6 +119,17 @@ MainWindow::~MainWindow()
 		delete imageBuffer1;
         delete imageBuffer2;
     }
+}
+
+void MainWindow::initialize(QString qstr, int i){
+
+	// Initialize all objects
+	sceneModel = new SceneModel();
+	sceneModel->folderPath = qstr;
+	sceneModel->imageLimit = i;
+
+	imageThread->initialize(sceneModel);
+	ui->videoWidget->initialize(sfmViewer, sceneModel);
 }
 
 void MainWindow::setCamera(const QByteArray &cameraDevice)

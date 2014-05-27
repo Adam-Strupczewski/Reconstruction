@@ -47,10 +47,21 @@
 
 int main(int argc, char *argv[])
 {
-    QApplication app(argc, argv);
+	
+	QApplication app(argc, argv);
 
-   MainWindow cameraWindow;
-   cameraWindow.show();
+	MainWindow cameraWindow;
+
+	if (argc<2){
+		qDebug() << "Need to provide path to image folder" << endl;
+		exit(0);
+	}else if (argc==2){
+		cameraWindow.initialize(QString(argv[1]),0);
+	}else{
+		cameraWindow.initialize(QString(argv[1]),QString(argv[2]).toInt());
+	}
+
+    cameraWindow.show();
 
 	// Instantiate the viewer.
 	/*SFMViewer viewer;
@@ -59,7 +70,6 @@ int main(int argc, char *argv[])
 
 	// Make the viewer window visible on screen.
 	viewer.show();*/
-
 
     return app.exec();
 }

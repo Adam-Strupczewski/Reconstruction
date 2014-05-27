@@ -94,12 +94,13 @@ bool ReconstructionHandler::initializeStereoModel(std::vector<cv::Point3d> &poin
 	std::vector<CloudPoint> tmpPcloud;
 
 	// Sort pairwise matches to find the lowest Homography inliers [Snavely07 4.2]
+	// Take less matches tan Snavely suggests...
 	std::list<std::pair<int,std::pair<int,int> > > matchesSizes;
 	// For debugging
 	std::map<std::pair<int,int> ,std::vector<cv::DMatch> > tempMatches = sceneModel->getMatches();
 
 	for(std::map<std::pair<int,int> ,std::vector<cv::DMatch> >::iterator i = tempMatches.begin(); i != tempMatches.end(); ++i) {
-		if((*i).second.size() < 100)
+		if((*i).second.size() < 60)
 			matchesSizes.push_back(make_pair(100,(*i).first));
 		else {
 			int Hinliers = findHomographyInliers2Views((*i).first.first,(*i).first.second);
@@ -393,7 +394,7 @@ bool ReconstructionHandler::findPoseEstimation(
 		cv::minMaxIdx(imgPoints,&minVal,&maxVal);
 		// TODO is this the best way to find camera pose?
 		cv::solvePnPRansac(ppcloud, imgPoints, sceneModel->K, sceneModel->distortionCoefficients, 
-						rvec, t, true, 1000, 0.006 * maxVal, 0.25 * (double)(imgPoints.size()), inliers, CV_EPNP);
+						rvec, t, true, 1000, 0.004 * maxVal, 0.25 * (double)(imgPoints.size()), inliers, CV_EPNP);
 	} else {
 
 #ifdef HAVE_OPENCV_GPU
@@ -445,7 +446,8 @@ bool ReconstructionHandler::findPoseEstimation(
 	cv::destroyWindow("__tmp");
 #endif
 
-	if(inliers.size() < (double)(imgPoints.size())/5.0) {
+	// AS - Changed threshold
+	if(inliers.size() < (double)(imgPoints.size())/10.0) {
 		LOG(Warn, "Not enough inliers to consider a good pose - ", inliers.size(), "/", imgPoints.size());
 		return false;
 	}
@@ -504,7 +506,7 @@ bool ReconstructionHandler::triangulatePointsBetweenViews(
 		LOG(Warn, "Triangulation did not succeed");
 		return false;
 	}
-	if(reprojectionError> 50.0) {
+	if(reprojectionError > 50.0) {
 		LOG(Warn, "Reprojection error too high - triangulation failed.");
 		return false;
 	}
@@ -616,11 +618,10 @@ bool ReconstructionHandler::triangulatePointsBetweenViews(
 
 void ReconstructionHandler::updateReprojectionErrors(){
 	// Here we want to calculate the total reprojection error for all reconstructed points so far
-
 	double averageTotalReprojectionError = 0.0;
 
 	// For every 3D reconstructed point
-	for (int j=0; j<sceneModel->reconstructedPts.size(); j++) {
+	for (int j=sceneModel->reconstructedPts.size()-1; j>=0; j--) {
 
 		// The point in homogenous coordinates
 		cv::Mat_<double> X(4,1);
@@ -663,6 +664,12 @@ void ReconstructionHandler::updateReprojectionErrors(){
 		// Normalize reprojection error for point
 		averagePointError = averagePointError / appearanceCnt;
 
+		// If reprojection error too high remove point
+		if (averagePointError > 15){
+			sceneModel->reconstructedPts.erase(sceneModel->reconstructedPts.begin()+j);
+			continue;
+		}
+
 		// Add point error to total
 		averageTotalReprojectionError += averagePointError;
 
@@ -676,6 +683,8 @@ void ReconstructionHandler::updateReprojectionErrors(){
 
 	LOG(Debug, "===================================================================");
 	LOG(Debug, "Finished BA, average total reprojection error: ", averageTotalReprojectionError);
+	LOG(Debug, "Total number of 3D points: ", (int) sceneModel->reconstructedPts.size());
+	LOG(Debug, "Total number of point observations: ", sceneModel->getNumberOfObservations());
 	LOG(Debug, "===================================================================");
 }
 

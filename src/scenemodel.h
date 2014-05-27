@@ -21,6 +21,8 @@ public:
     explicit SceneModel();
     virtual ~SceneModel();
 
+	void initialize(int w, int h);
+
 	// Camera parameters
 	cv::Mat K;
 	cv::Mat_<double> Kinv;
@@ -51,9 +53,12 @@ public:
 
 	int getFrameCount();
 
+	int getNumberOfObservations();
+
 	QString folderPath;
 	QStringList imageFileList;
 	QStringList keypointFileList;
+	int imageLimit;
 
 	// TEMPORARY FOR VISUALIZATION
 	std::vector<cv::Mat> frames;
@@ -83,9 +88,6 @@ private:	// TODO clean-up public / private vars
 
 	// Vector with matches assigned to image pairs
 	std::map<std::pair<int, int>, std::vector< cv::DMatch > > matchMap;
-
-	// Current scene model - all computed 3D scene feature points
-	std::vector<Point3Df> allPoints;
 
 	int counter;
 	QMutex mutex;

@@ -30,16 +30,16 @@ void FeatureHandler::initialize()
 	//detector = new cv::SURF(minHessian);
 	//detector = new cv::BRISK();
 	//detector = new cv::MSER();
-	//detector = new cv::SIFT();
-	detector = new cv::FastFeatureDetector();
+	detector = new cv::SIFT();
+	//detector = new cv::FastFeatureDetector();
 	//detector = cv::FeatureDetector::create("PyramidFAST");
 
 	//extractor = new cv::BRISK();
-	//extractor = new cv::SIFT();
+	extractor = new cv::SIFT();
 	//extractor = new cv::SURF();
 	//extractor = new cv::BRISK();
 	//extractor = new cv::BriefDescriptorExtractor();
-	extractor = new cv::ORB();
+	//extractor = new cv::ORB();
 	//extractor = new cv::FREAK();
 }
 
@@ -106,8 +106,8 @@ bool FeatureHandler::findMatches(int idx1, int idx2, std::vector<cv::KeyPoint> &
 
 	// Find matches
 	//cv::FlannBasedMatcher matcher;
-	//cv::BFMatcher matcher( cv::NORM_L1, true ); // Using cross-checking as an alternative to ratio checking
-	cv::BFMatcher matcher( cv::NORM_HAMMING, true ); // Using cross-checking as an alternative to ratio checking
+	cv::BFMatcher matcher( cv::NORM_L1, true ); // Using cross-checking as an alternative to ratio checking
+	//cv::BFMatcher matcher( cv::NORM_HAMMING, true ); // Using cross-checking as an alternative to ratio checking
 	std::vector< cv::DMatch > matches;
 
 	////////////////////////////////////////////
