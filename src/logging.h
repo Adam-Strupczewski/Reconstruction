@@ -2,6 +2,8 @@
 #define LOGGING_H
 
 #include <QDebug>
+#include <QFile>
+#include <QTextStream>
 
 #include <opencv2/core/core.hpp>
 

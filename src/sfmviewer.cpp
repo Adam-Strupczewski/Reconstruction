@@ -67,7 +67,7 @@ void SFMViewer::draw()
 	}
 	glEnd();
 
-	glScaled(scaleCamerasDown,scaleCamerasDown,scaleCamerasDown);
+	glScaled(0.3*scaleCamerasDown,0.3*scaleCamerasDown,0.3*scaleCamerasDown);
 
 	// Draw cameras
 	glEnable(GL_RESCALE_NORMAL);

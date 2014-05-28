@@ -43,11 +43,13 @@ ProcessingThread::~ProcessingThread()
 	delete reconstructionHandler;
 }
 
-void ProcessingThread::initialize(SceneModel *sceneModel)
+void ProcessingThread::initialize(QStatusBar *bar, SceneModel *sceneModel)
 {
 	this->sceneModel = sceneModel;
 	this->reconstructionHandler = new ReconstructionHandler();
 	this->reconstructionHandler->initialize(sceneModel);
+	this->statusBar = bar;
+
 }
 
 void ProcessingThread::stop()
@@ -71,6 +73,8 @@ void ProcessingThread::run()
     // Process until stop() called
 	int imageInitializedCnt = 0;
 	int imageReconstructedCnt = 0;
+
+	double reconstructionTime;
 
 #ifdef KEYPOINTS_FROM_FILE
 	// Read all matches
@@ -144,10 +148,20 @@ void ProcessingThread::run()
         }
         else
         {
+		
 			// In this set-up, if there are no waiting frames, choose consecutive best frames and reconstruct...
 			if (imageReconstructedCnt < imageInitializedCnt){
+
+				// Start calculating time
+				if (imageReconstructedCnt==0){
+					reconstructionTime = (double)cv::getTickCount();
+				}
+
 				imageReconstructedCnt++;
 				// If there remain frames with calculated features to be processed 
+
+				QString message = "Reconstructing image " + QString::number(imageReconstructedCnt);
+				statusBar->showMessage(message);
 
 				// If this is the beginning - initialize stereo model
 				if (imageReconstructedCnt == 1){
@@ -201,6 +215,13 @@ void ProcessingThread::run()
 					if (!b) continue;
 
 					update(points, pointsRGB,sceneModel->getCameras());				
+				}
+
+				// If this is the last image display time
+				if (imageReconstructedCnt==imageInitializedCnt){
+					reconstructionTime = ((double)cv::getTickCount() - reconstructionTime)/cv::getTickFrequency();
+					LOG(Debug, "Total time of reconstruction: ", reconstructionTime);
+					statusBar->showMessage("Finished reconstruction");
 				}
 								
 			}else{

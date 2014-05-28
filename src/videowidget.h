@@ -3,6 +3,7 @@
 
 #include <QWidget>
 #include <QAbstractVideoSurface>
+#include <QStatusBar>
 
 #include "sfmviewer.h"
 
@@ -17,7 +18,7 @@ public:
     explicit VideoWidget(QWidget *parent = 0);
     virtual ~VideoWidget();
 
-	void initialize(SFMViewer *sfmViewer, SceneModel * sceneModel);
+	void initialize(QStatusBar *bar, SFMViewer *sfmViewer, SceneModel * sceneModel);
 
     void setImageBuffers(QImage *im1, QImage *im2);
 

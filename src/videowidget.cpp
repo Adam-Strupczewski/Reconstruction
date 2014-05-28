@@ -51,7 +51,7 @@
 	 surface = new VideoSurface(this);
  }
 
- void VideoWidget::initialize(SFMViewer *sfmViewer, SceneModel * sceneModel){
+ void VideoWidget::initialize(QStatusBar *bar, SFMViewer *sfmViewer, SceneModel * sceneModel){
 
      // Connect surface to our slot
      connect(surface, SIGNAL(frameAvailable()), this, SLOT(frameReady()));
@@ -60,7 +60,7 @@
      connect(processor, SIGNAL(frameProcessed()), this, SLOT(onFrameProcessed()));
      connect(processor, SIGNAL(queueFull()), this, SLOT(onThreadCongested()));
 
-	 processor->initialize(sceneModel);
+	 processor->initialize(bar, sceneModel);
 	 processor->setUpdateListener(sfmViewer);
 
      processor->start();

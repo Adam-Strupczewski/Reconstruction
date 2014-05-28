@@ -665,7 +665,7 @@ void ReconstructionHandler::updateReprojectionErrors(){
 		averagePointError = averagePointError / appearanceCnt;
 
 		// If reprojection error too high remove point
-		if (averagePointError > 15){
+		if (averagePointError > 30){
 			sceneModel->reconstructedPts.erase(sceneModel->reconstructedPts.begin()+j);
 			continue;
 		}

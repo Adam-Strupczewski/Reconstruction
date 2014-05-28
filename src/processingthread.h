@@ -4,6 +4,7 @@
 #include <QThread>
 #include <QImage>
 #include <QQueue>
+#include <QStatusBar>
 
 #include "sfmupdatelistener.h"
 #include "scenemodel.h"
@@ -16,7 +17,7 @@ public:
     explicit ProcessingThread(QObject *parent = 0);
     virtual ~ProcessingThread();
 
-	void initialize(SceneModel *sceneModel);
+	void initialize(QStatusBar *bar, SceneModel *sceneModel);
 
 	QImage* getCurrentFrame(){return &currentFrameWithKeypoints;}
 
@@ -42,6 +43,7 @@ private:
 	ReconstructionHandler *reconstructionHandler;
 
 	SfMUpdateListener* listener;
+	QStatusBar *statusBar;
 
 public:
     void setUpdateListener(SfMUpdateListener *ul)

@@ -66,6 +66,13 @@ MainWindow::MainWindow(QWidget *parent) :
     imageBuffer1(0),
     imageBuffer2(0)
 {
+
+	// TODO Temporary
+	file = new QFile("out.txt");
+    if (!file->open(QIODevice::WriteOnly | QIODevice::Text))
+        return;
+    out = new QTextStream(file);
+
     ui->setupUi(this);
 
 	sfmViewer = new SFMViewer();
@@ -107,6 +114,11 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+	
+	file->close();
+	delete out;
+	delete file;
+
 	delete sfmViewer;
 	delete sceneModel;
 
@@ -129,7 +141,7 @@ void MainWindow::initialize(QString qstr, int i){
 	sceneModel->imageLimit = i;
 
 	imageThread->initialize(sceneModel);
-	ui->videoWidget->initialize(sfmViewer, sceneModel);
+	ui->videoWidget->initialize(ui->statusbar, sfmViewer, sceneModel);
 }
 
 void MainWindow::setCamera(const QByteArray &cameraDevice)

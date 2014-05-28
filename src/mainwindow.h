@@ -47,12 +47,16 @@
 
 #include <QMainWindow>
 
+#include "logging.h"
 #include "scenemodel.h"
 #include "sfmviewer.h"
 
 #include "videosurface.h"
 #include "settings.h"
 #include "imagereadingthread.h"
+
+extern QFile *file;
+extern QTextStream *out;
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
